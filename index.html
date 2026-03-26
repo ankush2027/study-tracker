@@ -1,113 +1,255 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#ff6b00" />
+  <meta name="description" content="Personal study and work tracker for CSE students with focus mode, countdown timer, streaks, and accountability." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="StudyTracker" />
+  <title>StudyTracker — Focus Mode</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
 
-    <title>Study & Work Tracker</title>
-
-    <!-- PWA -->
-    <link rel="manifest" href="manifest.json" />
-    <meta name="theme-color" content="#ff6a00" />
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet" />
-
-    <!-- Styles -->
-    <link rel="stylesheet" href="style.css" />
-  </head>
-
-  <body>
-    <div class="app-shell">
-      
-      <header class="hdr">
-        <h1>Study & Work Tracker</h1>
-        <p>Track your study and work time effectively</p>
-      </header>
-
-      <!-- Progress -->
-      <section class="progress-panel">
-        <div class="progress-info">
-          <span id="progressText">0 / 0 tasks</span>
-          <span id="progressPct">0%</span>
-        </div>
-        <div class="progress-bar">
-          <div id="progressFill" class="progress-fill"></div>
-        </div>
-      </section>
-
-      <!-- Streak -->
-      <section class="streak-panel">
-        <div class="streak-box">
-          🔥 <span id="streakCount">0</span> day streak
-        </div>
-      </section>
-
-      <!-- Add Slot -->
-      <section class="card">
-        <h2>Add Time Slot</h2>
-
-        <form id="slotForm" class="slot-form">
-          <div class="row">
-            <input id="startTime" type="time" required />
-            <input id="endTime" type="time" required />
-          </div>
-
-          <input id="taskName" type="text" placeholder="Task name" required />
-
-          <div class="type-row">
-            <label class="pill">
-              <input type="radio" name="slotType" value="fixed" checked />
-              Fixed
-            </label>
-
-            <label class="pill">
-              <input type="radio" name="slotType" value="flexible" />
-              Flexible
-            </label>
-          </div>
-
-          <button id="saveSlot" class="btn primary" type="submit">
-            Add Slot
-          </button>
-        </form>
-      </section>
-
-      <!-- Timetable -->
-      <section class="card">
-        <h2>Today</h2>
-
-        <ul id="timetable" class="timetable"></ul>
-
-        <p id="emptyState" class="empty-state">
-          No slots yet
-        </p>
-      </section>
-
-    </div>
-
-    <!-- Modal -->
-    <div id="accountabilityModal" class="modal">
-      <div class="modal-content">
-        <p id="modalMessage"></p>
-
-        <div class="modal-actions">
-          <button id="modalYes" class="btn primary">Yes</button>
-          <button id="modalNo" class="btn secondary">No</button>
-        </div>
+  <!-- ALARM OVERLAY -->
+  <div id="alarm-overlay" class="alarm-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="alarm-title">
+    <div class="alarm-box">
+      <div class="alarm-pulse-ring"></div>
+      <div class="alarm-icon">⏰</div>
+      <h2 class="alarm-title" id="alarm-title">Time's Up!</h2>
+      <p class="alarm-question">Did you complete:</p>
+      <p class="alarm-task-name" id="alarm-task-name"></p>
+      <div class="alarm-buttons">
+        <button id="btn-yes" class="btn btn-success btn-large" aria-label="Yes, I completed the task">✅ Yes, Completed!</button>
+        <button id="btn-no" class="btn btn-danger btn-large" aria-label="No, I did not complete the task">❌ No, Failed</button>
       </div>
     </div>
+  </div>
 
-    <!-- App -->
-    <script src="app.js"></script>
+  <!-- BREAK MODAL -->
+  <div id="break-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="break-modal-title">
+    <div class="modal-box">
+      <h3 id="break-modal-title">☕ Take a Break</h3>
+      <p class="modal-subtitle">How long is your break?</p>
+      <div class="input-row">
+        <input type="number" id="break-minutes" min="1" max="60" value="5" class="input-field text-center" placeholder="5" aria-label="Break duration in minutes" />
+        <span class="input-unit">minutes</span>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-start-break" class="btn btn-primary">Start Break</button>
+        <button id="btn-cancel-break" class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
 
-    <!-- Service Worker -->
-    <script>
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("service-worker.js");
-      }
-    </script>
-  </body>
+  <!-- NOTIFICATION BANNER -->
+  <div id="notif-banner" class="notif-banner hidden" role="alert">
+    <span>🔔 Enable notifications for timer alerts &amp; reminders</span>
+    <div class="notif-banner-actions">
+      <button id="btn-enable-notif" class="btn btn-sm btn-primary">Enable</button>
+      <button id="btn-dismiss-notif" class="btn btn-sm btn-ghost">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">📚</span>
+        <span class="logo-text">StudyTracker</span>
+      </div>
+      <div class="header-right">
+        <div class="streak-badge" id="streak-badge" title="Current Streak" aria-label="Current streak">
+          <span class="streak-fire" aria-hidden="true">🔥</span>
+          <span class="streak-count" id="streak-count">0</span>
+        </div>
+        <button class="install-btn hidden" id="install-btn" aria-label="Install app">⬇ Install</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAV TABS -->
+  <nav class="tabs" role="tablist" aria-label="Main navigation">
+    <button class="tab active" data-tab="timer" role="tab" aria-selected="true" id="tab-btn-timer">⏱ Timer</button>
+    <button class="tab" data-tab="reminders" role="tab" aria-selected="false" id="tab-btn-reminders">📌 Reminders</button>
+    <button class="tab" data-tab="todos" role="tab" aria-selected="false" id="tab-btn-todos">✅ Goals</button>
+    <button class="tab" data-tab="calendar" role="tab" aria-selected="false" id="tab-btn-calendar">📅 Calendar</button>
+  </nav>
+
+  <main class="main" id="main">
+
+    <!-- ========== TAB: TIMER ========== -->
+    <section id="tab-timer" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-timer">
+
+      <!-- COUNTDOWN DISPLAY -->
+      <div class="timer-card" id="timer-card">
+        <div class="timer-status-row">
+          <span class="timer-label" id="timer-label">No Active Session</span>
+          <span class="timer-status-dot" id="timer-status-dot" aria-hidden="true"></span>
+        </div>
+        <div class="timer-task-name" id="timer-task-display"></div>
+        <div class="countdown-display" id="countdown-display" aria-live="polite" aria-label="Countdown timer">
+          <span id="time-hh">--</span><span class="colon">:</span><span id="time-mm">--</span><span class="colon">:</span><span id="time-ss">--</span>
+        </div>
+        <div class="timer-progress-wrap">
+          <div class="timer-progress-bar" id="timer-progress-bar"></div>
+        </div>
+        <div class="break-status hidden" id="break-status">
+          <span class="break-label">☕ Break ends in:</span>
+          <span class="break-countdown" id="break-countdown">00:00</span>
+        </div>
+        <div class="timer-controls" id="timer-controls">
+          <button class="btn btn-warning hidden" id="btn-take-break">☕ Take Break</button>
+          <button class="btn btn-danger hidden" id="btn-end-session">🏁 End Session</button>
+        </div>
+      </div>
+
+      <!-- NEW SLOT FORM -->
+      <div class="card slot-form-card" id="slot-form-card">
+        <h2 class="section-title">➕ New Study Session</h2>
+        <div class="form-group">
+          <label class="form-label" for="task-name">Task / Subject</label>
+          <input type="text" id="task-name" class="input-field" placeholder="e.g. Operating Systems Chapter 3" maxlength="80" autocomplete="off" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="start-time">Start Time</label>
+            <input type="time" id="start-time" class="input-field" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="end-time">End Time</label>
+            <input type="time" id="end-time" class="input-field" />
+          </div>
+        </div>
+        <button id="btn-start-session" class="btn btn-primary btn-full btn-large">🚀 Start Session</button>
+        <p class="form-hint" id="form-hint" role="alert"></p>
+      </div>
+
+      <!-- SESSION HISTORY -->
+      <div class="card history-card">
+        <h2 class="section-title">📋 Today's Sessions</h2>
+        <div id="history-list" class="history-list">
+          <p class="empty-state">No sessions yet today. Start one above!</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========== TAB: REMINDERS ========== -->
+    <section id="tab-reminders" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-reminders">
+      <div class="card">
+        <h2 class="section-title">📌 Add Reminder</h2>
+        <div class="form-group">
+          <label class="form-label" for="reminder-text">Reminder Note</label>
+          <input type="text" id="reminder-text" class="input-field" placeholder="e.g. Submit assignment before 11:59 PM" maxlength="120" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reminder-time">Alert Date &amp; Time</label>
+          <input type="datetime-local" id="reminder-time" class="input-field" />
+        </div>
+        <button id="btn-add-reminder" class="btn btn-primary btn-full">📌 Add Reminder</button>
+      </div>
+      <div class="card">
+        <h2 class="section-title">📋 Active Reminders</h2>
+        <div id="reminders-list" class="reminders-list">
+          <p class="empty-state">No reminders set. Add one above!</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== TAB: TODOS ========== -->
+    <section id="tab-todos" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-todos">
+      <div class="card">
+        <h2 class="section-title">➕ Add Goal</h2>
+        <div class="form-group">
+          <label class="form-label" for="todo-text">Goal / Task</label>
+          <input type="text" id="todo-text" class="input-field" placeholder="e.g. Solve 3 LeetCode problems" maxlength="100" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="todo-type">Type</label>
+          <select id="todo-type" class="input-field select-field">
+            <option value="daily">📅 Daily Goal</option>
+            <option value="weekly">📆 Weekly Goal</option>
+          </select>
+        </div>
+        <button id="btn-add-todo" class="btn btn-primary btn-full">✅ Add Goal</button>
+      </div>
+
+      <div class="card">
+        <div class="section-header-row">
+          <h2 class="section-title">📅 Daily Goals</h2>
+          <span class="progress-chip" id="daily-progress">0/0</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="daily-progress-bar"></div>
+        </div>
+        <div id="daily-todos-list" class="todos-list">
+          <p class="empty-state">No daily goals yet.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-header-row">
+          <h2 class="section-title">📆 Weekly Goals</h2>
+          <span class="progress-chip" id="weekly-progress">0/0</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="weekly-progress-bar"></div>
+        </div>
+        <div id="weekly-todos-list" class="todos-list">
+          <p class="empty-state">No weekly goals yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== TAB: CALENDAR ========== -->
+    <section id="tab-calendar" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-calendar">
+      <div class="card">
+        <div class="calendar-header">
+          <button class="btn btn-ghost btn-icon" id="cal-prev" aria-label="Previous month">‹</button>
+          <h2 class="calendar-month-title" id="cal-month-title">March 2026</h2>
+          <button class="btn btn-ghost btn-icon" id="cal-next" aria-label="Next month">›</button>
+        </div>
+        <div class="calendar-legend">
+          <span class="legend-dot completed" aria-hidden="true"></span><span>Completed</span>
+          <span class="legend-dot missed" aria-hidden="true"></span><span>Missed</span>
+          <span class="legend-dot today" aria-hidden="true"></span><span>Today</span>
+        </div>
+        <div class="calendar-grid-wrap">
+          <div class="calendar-weekdays">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div class="calendar-grid" id="calendar-grid" role="grid" aria-label="Calendar"></div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Sessions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-completed">0</div>
+          <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-streak">0</div>
+          <div class="stat-label">Best Streak</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-hours">0h</div>
+          <div class="stat-label">Hours Tracked</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
 </html>

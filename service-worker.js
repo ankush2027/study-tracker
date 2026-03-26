@@ -1,57 +1,76 @@
-const CACHE_NAME = "study-tracker-v1";
-
-const FILES_TO_CACHE = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./app.js",
-  "./manifest.json"
+const CACHE_NAME = 'studytracker-v3';
+const ASSETS = [
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './manifest.json'
 ];
 
-/* INSTALL */
-self.addEventListener("install", (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(FILES_TO_CACHE);
-    })
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-/* ACTIVATE */
-self.addEventListener("activate", (event) => {
+self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-/* FETCH */
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request)
-          .then((response) => {
+    caches.match(event.request).then(cached => {
+      // Return cached response if found
+      if (cached) return cached;
+      
+      // Otherwise fetch from network
+      return fetch(event.request).then(response => {
+        // Cache the dynamically fetched resources (even opaque ones for fonts)
+        if (!response || response.status !== 200) {
+          if (response && response.type === 'opaque') {
+            // It's safe to cache an opaque response (like Google Fonts)
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone);
-            });
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
             return response;
-          })
-          .catch(() => caches.match("./index.html"))
-      );
+          }
+          return response;
+        }
+        
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return response;
+      }).catch(() => {
+        // Fallback for document requests if completely offline
+        if (event.request.destination === 'document') {
+          return caches.match('./index.html');
+        }
+      });
+    })
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url.includes(self.registration.scope) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('./');
+      }
     })
   );
 });
