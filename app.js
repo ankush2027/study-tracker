@@ -612,7 +612,7 @@ function checkReminders() {
 function addTodo() {
   const text = el('todo-text').value.trim();
   const type = el('todo-type').value;
-  if (!text) { alert('Please enter a goal.'); return; }
+  if (!text) { alert('Please enter text.'); return; }
   state.todos.push({ id: genId(), text, type, done: false, createdAt: nowMs() });
   saveState();
   el('todo-text').value = '';
@@ -633,6 +633,7 @@ function deleteTodo(id) {
 function renderTodos() {
   renderTodoGroup('daily', 'daily-todos-list', 'daily-progress', 'daily-progress-bar', 'No daily goals yet.');
   renderTodoGroup('weekly', 'weekly-todos-list', 'weekly-progress', 'weekly-progress-bar', 'No weekly goals yet.');
+  renderTodoGroup('note', 'note-todos-list', 'note-progress', null, 'No notes or doubts yet.');
 }
 
 function renderTodoGroup(type, listId, chipId, barId, emptyMsg) {
@@ -642,8 +643,12 @@ function renderTodoGroup(type, listId, chipId, barId, emptyMsg) {
   const total = todos.length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  el(chipId).textContent = `${done}/${total}`;
-  el(barId).style.width = `${pct}%`;
+  if (type === 'note') {
+    el(chipId).textContent = `${total}`;
+  } else {
+    el(chipId).textContent = `${done}/${total}`;
+    if (barId) el(barId).style.width = `${pct}%`;
+  }
 
   if (todos.length === 0) { list.innerHTML = `<p class="empty-state">${emptyMsg}</p>`; return; }
 
@@ -652,10 +657,14 @@ function renderTodoGroup(type, listId, chipId, barId, emptyMsg) {
     const div = document.createElement('div');
     div.className = 'todo-item' + (t.done ? ' done' : '');
     div.dataset.id = t.id;
+    
+    // Notes don't need a checkbox, just a dot or nothing
+    const checkboxHtml = type === 'note' ? '<span class="todo-bullet">•</span>' : `<div class="todo-checkbox">${t.done ? '✓' : ''}</div>`;
+    
     div.innerHTML = `
-      <div class="todo-checkbox">${t.done ? '✓' : ''}</div>
+      ${checkboxHtml}
       <span class="todo-text">${escHtml(t.text)}</span>
-      <button class="todo-delete" data-id="${t.id}" aria-label="Delete goal">🗑</button>
+      <button class="todo-delete" data-id="${t.id}" aria-label="Delete">🗑</button>
     `;
     div.addEventListener('click', e => {
       if (e.target.classList.contains('todo-delete')) return;

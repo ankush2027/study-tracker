@@ -1,4 +1,4 @@
-const CACHE_NAME = 'studytracker-v3';
+const CACHE_NAME = 'studytracker-v4';
 const ASSETS = [
   './',
   './index.html',

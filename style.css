@@ -519,6 +519,15 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert
   transition: var(--transition);
   font-size: 0.7rem;
 }
+.todo-bullet {
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
 .todo-item.done .todo-checkbox { background: var(--success); border-color: var(--success); }
 .todo-text {
   flex: 1;
