@@ -1,0 +1,210 @@
+:root {
+  --bg: #0f0f0f;
+  --card: #1a1a1a;
+  --accent: #ff6a00;
+  --text: #ffffff;
+  --muted: #9ca3af;
+  --danger: #ef4444;
+  --yellow: #f59e0b;
+  --green: #22c55e;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Layout */
+.app-shell {
+  max-width: 500px;
+  margin: auto;
+  padding: 16px;
+}
+
+/* Header */
+.hdr h1 {
+  font-family: 'Space Mono', monospace;
+  text-align: center;
+  font-size: 1.6rem;
+}
+
+.hdr p {
+  text-align: center;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* Cards */
+.card {
+  background: var(--card);
+  padding: 16px;
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+
+/* Inputs */
+input {
+  width: 100%;
+  padding: 12px;
+  margin: 6px 0;
+  border-radius: 10px;
+  border: none;
+  background: #262626;
+  color: white;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+/* Buttons */
+.btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn.secondary {
+  background: #333;
+  color: white;
+}
+
+/* Toggle */
+.type-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.pill {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  border-radius: 20px;
+  background: #262626;
+  cursor: pointer;
+}
+
+/* Progress */
+.progress-panel {
+  margin-bottom: 16px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.progress-bar {
+  height: 10px;
+  background: #262626;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--danger);
+  transition: width 0.3s ease;
+}
+
+/* Streak */
+.streak-panel {
+  text-align: center;
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+}
+
+/* Timetable */
+.timetable {
+  list-style: none;
+}
+
+.timetable li {
+  background: #262626;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+.active {
+  border: 2px solid var(--accent);
+}
+
+.badge {
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 10px;
+  margin-left: 6px;
+}
+
+.fixed {
+  background: #333;
+}
+
+.flexible {
+  background: var(--accent);
+}
+
+/* Empty */
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-content {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 16px;
+  text-align: center;
+  width: 90%;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .row {
+    flex-direction: column;
+  }
+}

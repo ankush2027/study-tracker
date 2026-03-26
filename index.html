@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>Study & Work Tracker</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#ff6a00" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet" />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <div class="app-shell">
+      
+      <header class="hdr">
+        <h1>Study & Work Tracker</h1>
+        <p>Track your study and work time effectively</p>
+      </header>
+
+      <!-- Progress -->
+      <section class="progress-panel">
+        <div class="progress-info">
+          <span id="progressText">0 / 0 tasks</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+      </section>
+
+      <!-- Streak -->
+      <section class="streak-panel">
+        <div class="streak-box">
+          🔥 <span id="streakCount">0</span> day streak
+        </div>
+      </section>
+
+      <!-- Add Slot -->
+      <section class="card">
+        <h2>Add Time Slot</h2>
+
+        <form id="slotForm" class="slot-form">
+          <div class="row">
+            <input id="startTime" type="time" required />
+            <input id="endTime" type="time" required />
+          </div>
+
+          <input id="taskName" type="text" placeholder="Task name" required />
+
+          <div class="type-row">
+            <label class="pill">
+              <input type="radio" name="slotType" value="fixed" checked />
+              Fixed
+            </label>
+
+            <label class="pill">
+              <input type="radio" name="slotType" value="flexible" />
+              Flexible
+            </label>
+          </div>
+
+          <button id="saveSlot" class="btn primary" type="submit">
+            Add Slot
+          </button>
+        </form>
+      </section>
+
+      <!-- Timetable -->
+      <section class="card">
+        <h2>Today</h2>
+
+        <ul id="timetable" class="timetable"></ul>
+
+        <p id="emptyState" class="empty-state">
+          No slots yet
+        </p>
+      </section>
+
+    </div>
+
+    <!-- Modal -->
+    <div id="accountabilityModal" class="modal">
+      <div class="modal-content">
+        <p id="modalMessage"></p>
+
+        <div class="modal-actions">
+          <button id="modalYes" class="btn primary">Yes</button>
+          <button id="modalNo" class="btn secondary">No</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- App -->
+    <script src="app.js"></script>
+
+    <!-- Service Worker -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("service-worker.js");
+      }
+    </script>
+  </body>
+</html>
