@@ -69,6 +69,7 @@ function fmtDatetime(ts) {
   return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function nowMs() { return Date.now(); }
 
 /* =====================================================
    FIREBASE PERSISTENCE
@@ -462,7 +463,7 @@ function triggerAlarm() {
   const task = state.activeSlot.task;
 
   startAlarmSound();
-  showNotif('⏰ Time\\'s Up!', `Did you complete: ${task}?`);
+  showNotif("⏰ Time's Up!", `Did you complete: ${task}?`);
 
   el('alarm-task-name').textContent = task;
   el('alarm-overlay').classList.remove('hidden');
