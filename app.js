@@ -14,6 +14,18 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// Enable Firestore offline persistence for PWAs
+import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+try {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn("Firestore persistence failed (multiple tabs open)");
+    } else if (err.code === 'unimplemented') {
+      console.warn("Firestore persistence NOT supported by this browser");
+    }
+  });
+} catch (e) { }
+
 // simple user id (later you can add login)
 const USER_ID = "ankush";
 
@@ -21,27 +33,27 @@ const USER_ID = "ankush";
    CONSTANTS & STATE
    ===================================================== */
 const STORAGE_KEY = 'studyTrackerV2';
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 let state = {
-  activeSlot:   null,      // { task, startTs, endTs, breakMs, breakStartTs, onBreak }
-  history:      {},        // { "YYYY-MM-DD": [ { task, startTs, endTs, result, durationMs } ] }
-  reminders:    [],        // [ { id, text, ts, triggered } ]
-  todos:        [],        // [ { id, text, type, done, createdAt } ]
-  streak:       0,
-  bestStreak:   0,
-  lastDate:     null
+  activeSlot: null,      // { task, startTs, endTs, breakMs, breakStartTs, onBreak }
+  history: {},        // { "YYYY-MM-DD": [ { task, startTs, endTs, result, durationMs } ] }
+  reminders: [],        // [ { id, text, ts, triggered } ]
+  todos: [],        // [ { id, text, type, done, createdAt } ]
+  streak: 0,
+  bestStreak: 0,
+  lastDate: null
 };
 
 // Runtime (not persisted)
-let tickInterval       = null;
-let breakTickInterval  = null;
-let reminderInterval   = null;
-let alarmAudio         = null;
-let deferredInstall    = null;
-let calendarYear       = new Date().getFullYear();
-let calendarMonth      = new Date().getMonth();
+let tickInterval = null;
+let breakTickInterval = null;
+let reminderInterval = null;
+let alarmAudio = null;
+let deferredInstall = null;
+let calendarYear = new Date().getFullYear();
+let calendarMonth = new Date().getMonth();
 
 /* =====================================================
    UTILITY
@@ -84,28 +96,50 @@ async function loadState() {
       state = Object.assign(state, stored);
       console.log("📦 Loaded from LocalStorage (cache)");
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // Sets up Real-time synchronization
   const docRef = doc(db, "users", USER_ID);
   onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
       const remoteState = docSnap.data();
-      
-      // Update our local state exactly to what's in the cloud
-      state = Object.assign(state, remoteState);
-      
-      // Ensure arrays exist for backward compatibility
-      if (!state.todos) state.todos = [];
-      if (!state.reminders) state.reminders = [];
-      if (!state.history) state.history = {};
-      
+
+      // Keep local slot if it's running
+      const localSlot = state.activeSlot;
+
+      // Update our local state by carefully merging from cloud
+      state.history = remoteState.history || state.history || {};
+      state.todos = remoteState.todos || state.todos || [];
+      state.reminders = remoteState.reminders || state.reminders || [];
+      state.streak = remoteState.streak || state.streak || 0;
+      state.bestStreak = remoteState.bestStreak || state.bestStreak || 0;
+      state.lastDate = remoteState.lastDate || state.lastDate || null;
+
+      // Auto-sync local active slot to cloud if cloud lost it
+      // This prevents the timer from disappearing when switching quickly or refreshing on phone
+      if (localSlot && !remoteState.activeSlot) {
+        state.activeSlot = localSlot;
+        // Quietly update cloud so it catches up
+        setTimeout(saveState, 500);
+      } else {
+        state.activeSlot = remoteState.activeSlot || null;
+      }
+
       console.log("🔥 Live data automatically synced from Firebase!");
-      
+
+      // If a new active slot just came in or was preserved, re-start the timer UI
+      if (state.activeSlot && !tickInterval) {
+        startTickLoop();
+        renderTimerActive();
+      }
+
       // If the UI is already initialized, dynamically pull the new changes visually
       if (document.getElementById("history-list")) {
         renderAll();
       }
+    } else {
+      // First time user? Push empty local state to cloud
+      saveState();
     }
   }, (error) => {
     console.warn("Firebase listener error, continuing with local offline data", error);
@@ -116,7 +150,7 @@ async function saveState() {
   // Always save to LocalStorage first
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {}
+  } catch (e) { }
 
   // Then sync to Firebase
   try {
@@ -135,7 +169,7 @@ function initAudio() {
   if (!globalAudioCtx) {
     try {
       globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch(e) {}
+    } catch (e) { }
   }
   if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
     globalAudioCtx.resume();
@@ -143,11 +177,11 @@ function initAudio() {
 }
 
 function createBeep() {
-  if (!globalAudioCtx) return { start() {}, stop() {} };
-  
+  if (!globalAudioCtx) return { start() { }, stop() { } };
+
   try {
     if (globalAudioCtx.state === 'suspended') globalAudioCtx.resume();
-    
+
     function beepOnce() {
       try {
         const osc = globalAudioCtx.createOscillator();
@@ -161,9 +195,9 @@ function createBeep() {
         gain.gain.exponentialRampToValueAtTime(0.001, globalAudioCtx.currentTime + 0.4);
         osc.start(globalAudioCtx.currentTime);
         osc.stop(globalAudioCtx.currentTime + 0.4);
-      } catch(e) {}
+      } catch (e) { }
     }
-    
+
     let loop = null;
     return {
       start() {
@@ -174,7 +208,7 @@ function createBeep() {
       stop() { if (loop) { clearInterval(loop); loop = null; } }
     };
   } catch (e) {
-    return { start() {}, stop() {} };
+    return { start() { }, stop() { } };
   }
 }
 
@@ -209,7 +243,7 @@ function showNotif(title, body) {
       tag: 'studytracker'
     });
     setTimeout(() => n.close(), 10000);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function hideBanner() { el('notif-banner').classList.add('hidden'); }
@@ -317,20 +351,20 @@ function renderTimerActive() {
    START SESSION
    ===================================================== */
 function startSession() {
-  const task  = el('task-name').value.trim();
+  const task = el('task-name').value.trim();
   const start = el('start-time').value;
-  const end   = el('end-time').value;
-  const hint  = el('form-hint');
+  const end = el('end-time').value;
+  const hint = el('form-hint');
 
   if (!task) { hint.textContent = '⚠ Please enter a task name.'; return; }
   if (!start) { hint.textContent = '⚠ Please set a start time.'; return; }
-  if (!end)   { hint.textContent = '⚠ Please set an end time.'; return; }
+  if (!end) { hint.textContent = '⚠ Please set an end time.'; return; }
 
   const now = new Date();
   const todayPrefix = `${fmtDate(now)}T`;
 
   let startTs = new Date(todayPrefix + start).getTime();
-  let endTs   = new Date(todayPrefix + end).getTime();
+  let endTs = new Date(todayPrefix + end).getTime();
 
   if (endTs <= startTs) endTs += 86400000; // crosses midnight
 
@@ -345,13 +379,13 @@ function startSession() {
   if (startTs < nowMs()) startTs = nowMs();
 
   state.activeSlot = {
-    id:           genId(),
+    id: genId(),
     task,
     startTs,
     endTs,
-    breakMs:      0,
+    breakMs: 0,
     breakStartTs: null,
-    onBreak:      false
+    onBreak: false
   };
   saveState();
   renderTimerActive();
@@ -374,7 +408,7 @@ function clearInputs() {
 }
 
 function lockForm() {
-  ['task-name','start-time','end-time','btn-start-session'].forEach(id => {
+  ['task-name', 'start-time', 'end-time', 'btn-start-session'].forEach(id => {
     const e = el(id);
     if (e) e.disabled = true;
   });
@@ -383,7 +417,7 @@ function lockForm() {
 }
 
 function unlockForm() {
-  ['task-name','start-time','end-time','btn-start-session'].forEach(id => {
+  ['task-name', 'start-time', 'end-time', 'btn-start-session'].forEach(id => {
     const e = el(id);
     if (e) e.disabled = false;
   });
@@ -479,11 +513,11 @@ function resolveAlarm(completed) {
 
   if (!state.history[todayDate]) state.history[todayDate] = [];
   state.history[todayDate].push({
-    id:         slot.id,
-    task:       slot.task,
-    startTs:    slot.startTs,
-    endTs:      slot.endTs,
-    result:     completed ? 'completed' : 'failed',
+    id: slot.id,
+    task: slot.task,
+    startTs: slot.startTs,
+    endTs: slot.endTs,
+    result: completed ? 'completed' : 'failed',
     durationMs: slot.endTs - slot.startTs
   });
 
@@ -606,8 +640,8 @@ function deleteReminder(id) {
 
 function renderReminders() {
   const list = el('reminders-list');
-  const active = state.reminders.filter(r => !r.triggered).sort((a,b) => a.ts - b.ts);
-  const done   = state.reminders.filter(r => r.triggered).sort((a,b) => b.ts - a.ts);
+  const active = state.reminders.filter(r => !r.triggered).sort((a, b) => a.ts - b.ts);
+  const done = state.reminders.filter(r => r.triggered).sort((a, b) => b.ts - a.ts);
   const all = [...active, ...done];
 
   if (all.length === 0) {
@@ -708,10 +742,10 @@ function renderTodoGroup(type, listId, chipId, barId, emptyMsg) {
     const div = document.createElement('div');
     div.className = 'todo-item' + (t.done ? ' done' : '');
     div.dataset.id = t.id;
-    
+
     // Notes don't need a checkbox, just a dot or nothing
     const checkboxHtml = type === 'note' ? '<span class="todo-bullet">•</span>' : `<div class="todo-checkbox">${t.done ? '✓' : ''}</div>`;
-    
+
     div.innerHTML = `
       ${checkboxHtml}
       <span class="todo-text">${escHtml(t.text)}</span>
@@ -884,13 +918,13 @@ function initPWA() {
    SECURITY / XSS
    ===================================================== */
 function escHtml(str) {
-  if(!str) return '';
+  if (!str) return '';
   return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#039;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 /* =====================================================
@@ -961,14 +995,14 @@ async function init() {
   initEvents();
   initPWA();
   setDefaultTimes();
-  
-  await loadState(); 
-  
+
+  await loadState();
+
   renderAll();
   showBanner();
   checkExpiredSlot();
   startReminderLoop();
-  
+
   // Unlock audio context on any user interaction
   document.addEventListener('click', initAudio, { once: true });
   document.addEventListener('touchstart', initAudio, { once: true });

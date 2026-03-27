@@ -1,4 +1,4 @@
-const CACHE_NAME = 'studytracker-v5';
+const CACHE_NAME = 'studytracker-v6';
 
 const ASSETS = [
   './',
@@ -32,30 +32,23 @@ self.addEventListener('activate', event => {
   );
 });
 
-// FETCH
+// FETCH (Stale-While-Revalidate)
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
     caches.match(event.request, { ignoreSearch: true }).then(cached => {
-      if (cached) return cached;
+      const fetchPromise = fetch(event.request).then(networkResponse => {
+        if (networkResponse && networkResponse.ok) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return networkResponse;
+      }).catch(e => {
+        console.warn('Network fetch failed', e);
+      });
 
-      return fetch(event.request)
-        .then(response => {
-          if (!response) return response;
-
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, clone);
-          });
-
-          return response;
-        })
-        .catch(() => {
-          if (event.request.destination === 'document') {
-            return caches.match('./index.html', { ignoreSearch: true });
-          }
-        });
+      return cached || fetchPromise;
     })
   );
 });
