@@ -107,22 +107,32 @@ async function loadState() {
       // Keep local slot if it's running
       const localSlot = state.activeSlot;
 
-      // Update our local state by carefully merging from cloud
-      state.history = remoteState.history || state.history || {};
-      state.todos = remoteState.todos || state.todos || [];
-      state.reminders = remoteState.reminders || state.reminders || [];
-      state.streak = remoteState.streak || state.streak || 0;
-      state.bestStreak = remoteState.bestStreak || state.bestStreak || 0;
-      state.lastDate = remoteState.lastDate || state.lastDate || null;
-
-      // Auto-sync local active slot to cloud if cloud lost it
-      // This prevents the timer from disappearing when switching quickly or refreshing on phone
-      if (localSlot && !remoteState.activeSlot) {
-        state.activeSlot = localSlot;
-        // Quietly update cloud so it catches up
-        setTimeout(saveState, 500);
+      // SAFETY CHECK: If local state is definitively newer than Firebase's incoming snapshot 
+      // (happens when refreshing before a cloud write finishes or when offline), DO NOT overwrite.
+      const isLocalNewer = state.updatedAt && (!remoteState.updatedAt || state.updatedAt > remoteState.updatedAt);
+      
+      if (isLocalNewer) {
+        console.warn("🛡️ Local data is more recent than cloud data! Retaining local changes.");
+        setTimeout(saveState, 1000); // Push newer local data to cloud
       } else {
-        state.activeSlot = remoteState.activeSlot || null;
+        // Safe to accept cloud state
+        state.history = remoteState.history || state.history || {};
+        state.todos = remoteState.todos || state.todos || [];
+        state.reminders = remoteState.reminders || state.reminders || [];
+        state.streak = remoteState.streak || state.streak || 0;
+        state.bestStreak = remoteState.bestStreak || state.bestStreak || 0;
+        state.lastDate = remoteState.lastDate || state.lastDate || null;
+        state.updatedAt = remoteState.updatedAt || state.updatedAt || null;
+
+        // Auto-sync local active slot to cloud if cloud lost it
+        // This prevents the timer from disappearing when switching quickly or refreshing on phone
+        if (localSlot && !remoteState.activeSlot) {
+          state.activeSlot = localSlot;
+          // Quietly update cloud so it catches up
+          setTimeout(saveState, 500);
+        } else {
+          state.activeSlot = remoteState.activeSlot || null;
+        }
       }
 
       console.log("🔥 Live data automatically synced from Firebase!");
@@ -147,6 +157,8 @@ async function loadState() {
 }
 
 async function saveState() {
+  state.updatedAt = Date.now();
+
   // Always save to LocalStorage first
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
