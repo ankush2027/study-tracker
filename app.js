@@ -108,21 +108,24 @@ async function loadState() {
       const localSlot = state.activeSlot;
 
       // SAFETY CHECK: If local state is definitively newer than Firebase's incoming snapshot 
-      // (happens when refreshing before a cloud write finishes or when offline), DO NOT overwrite.
-      const isLocalNewer = state.updatedAt && (!remoteState.updatedAt || state.updatedAt > remoteState.updatedAt);
+      // (happens when refreshing before a cloud write finishes, or when offline), DO NOT overwrite.
+      const localVersion = state.version || 0;
+      const remoteVersion = remoteState.version || 0;
+      
+      const isLocalNewer = localVersion > remoteVersion;
       
       if (isLocalNewer) {
-        console.warn("🛡️ Local data is more recent than cloud data! Retaining local changes.");
+        console.warn(`🛡️ Local data (v${localVersion}) is more recent than cloud data (v${remoteVersion})! Retaining local changes.`);
         setTimeout(saveState, 1000); // Push newer local data to cloud
       } else {
         // Safe to accept cloud state
+        state.version = remoteVersion;
         state.history = remoteState.history || state.history || {};
         state.todos = remoteState.todos || state.todos || [];
         state.reminders = remoteState.reminders || state.reminders || [];
         state.streak = remoteState.streak || state.streak || 0;
         state.bestStreak = remoteState.bestStreak || state.bestStreak || 0;
         state.lastDate = remoteState.lastDate || state.lastDate || null;
-        state.updatedAt = remoteState.updatedAt || state.updatedAt || null;
 
         // Auto-sync local active slot to cloud if cloud lost it
         // This prevents the timer from disappearing when switching quickly or refreshing on phone
@@ -157,7 +160,7 @@ async function loadState() {
 }
 
 async function saveState() {
-  state.updatedAt = Date.now();
+  state.version = (state.version || 0) + 1;
 
   // Always save to LocalStorage first
   try {
