@@ -2,7 +2,7 @@
   "name": "StudyTracker — Focus Mode",
   "short_name": "StudyTracker",
   "description": "Personal study and work tracker for CSE students with strict focus system",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
