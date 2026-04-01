@@ -1,6 +1,6 @@
 /* ================= FIREBASE SETUP ================= */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, onSnapshot, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBxiORJgtpxJXqNZRtYsjB6pOpYwdLnTCQ",
@@ -14,8 +14,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Enable Firestore offline persistence for PWAs
-import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// Enable offline persistence for PWA
 try {
   enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
@@ -26,27 +25,28 @@ try {
   });
 } catch (e) { }
 
-// simple user id (later you can add login)
+// User ID - hardcoded for personal use
 const USER_ID = "ankush";
 
 /* =====================================================
    CONSTANTS & STATE
    ===================================================== */
 const STORAGE_KEY = 'studyTrackerV2';
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 let state = {
-  activeSlot: null,      // { task, startTs, endTs, breakMs, breakStartTs, onBreak }
-  history: {},        // { "YYYY-MM-DD": [ { task, startTs, endTs, result, durationMs } ] }
-  reminders: [],        // [ { id, text, ts, triggered } ]
-  todos: [],        // [ { id, text, type, done, createdAt } ]
+  activeSlot: null,
+  history: {},
+  reminders: [],
+  todos: [],
   streak: 0,
   bestStreak: 0,
   lastDate: null
 };
 
-// Runtime (not persisted)
+// Runtime only - not persisted
 let tickInterval = null;
 let breakTickInterval = null;
 let reminderInterval = null;
@@ -54,6 +54,7 @@ let alarmAudio = null;
 let deferredInstall = null;
 let calendarYear = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
+let firebaseReady = false;
 
 /* =====================================================
    UTILITY
@@ -85,93 +86,108 @@ function nowMs() { return Date.now(); }
 
 /* =====================================================
    FIREBASE PERSISTENCE
+   Firebase is the ONLY source of truth.
+   localStorage is only used as offline fallback cache.
+   No version numbers. No conflict logic.
+   Last write wins - simple and reliable.
    ===================================================== */
 async function loadState() {
-  console.log("⏳ Loading state...");
-  // Try to load from LocalStorage first for instant UI
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const stored = JSON.parse(raw);
-      state = Object.assign(state, stored);
-      console.log("📦 Loaded from LocalStorage (cache)");
-    }
-  } catch (e) { }
+  console.log("⏳ Loading state from Firebase...");
 
-  // Sets up Real-time synchronization
   const docRef = doc(db, "users", USER_ID);
+
+  // Set up real-time listener - Firebase is master
   onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
       const remoteState = docSnap.data();
 
-      // Keep local slot if it's running
-      const localSlot = state.activeSlot;
+      // Firebase always wins - no version conflict logic
+      // Simply overwrite local state with Firebase state
+      state.history   = remoteState.history   || {};
+      state.todos     = remoteState.todos     || [];
+      state.reminders = remoteState.reminders || [];
+      state.streak    = remoteState.streak    || 0;
+      state.bestStreak= remoteState.bestStreak|| 0;
+      state.lastDate  = remoteState.lastDate  || null;
 
-      // SAFETY CHECK: If local state is definitively newer than Firebase's incoming snapshot 
-      // (happens when refreshing before a cloud write finishes, or when offline), DO NOT overwrite.
-      const localVersion = state.version || 0;
-      const remoteVersion = remoteState.version || 0;
-      
-      const isLocalNewer = localVersion > remoteVersion;
-      
-      if (isLocalNewer) {
-        console.warn(`🛡️ Local data (v${localVersion}) is more recent than cloud data (v${remoteVersion})! Retaining local changes.`);
-        setTimeout(saveState, 1000); // Push newer local data to cloud
-      } else {
-        // Safe to accept cloud state
-        state.version = remoteVersion;
-        state.history = remoteState.history || state.history || {};
-        state.todos = remoteState.todos || state.todos || [];
-        state.reminders = remoteState.reminders || state.reminders || [];
-        state.streak = remoteState.streak || state.streak || 0;
-        state.bestStreak = remoteState.bestStreak || state.bestStreak || 0;
-        state.lastDate = remoteState.lastDate || state.lastDate || null;
-
-        // Auto-sync local active slot to cloud if cloud lost it
-        // This prevents the timer from disappearing when switching quickly or refreshing on phone
-        if (localSlot && !remoteState.activeSlot) {
-          state.activeSlot = localSlot;
-          // Quietly update cloud so it catches up
-          setTimeout(saveState, 500);
-        } else {
-          state.activeSlot = remoteState.activeSlot || null;
-        }
+      // Handle active slot carefully:
+      // If there's a local active slot running right now, keep it
+      // This prevents timer disappearing when Firebase syncs
+      const hasLocalActiveSlot = state.activeSlot && tickInterval;
+      if (!hasLocalActiveSlot) {
+        state.activeSlot = remoteState.activeSlot || null;
       }
 
-      console.log("🔥 Live data automatically synced from Firebase!");
+      // Save to localStorage as offline cache only
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) { }
 
-      // If a new active slot just came in or was preserved, re-start the timer UI
+      console.log("🔥 Synced from Firebase!");
+      firebaseReady = true;
+
+      // Restart timer if active slot came from Firebase
       if (state.activeSlot && !tickInterval) {
         startTickLoop();
         renderTimerActive();
       }
 
-      // If the UI is already initialized, dynamically pull the new changes visually
+      // Update UI
       if (document.getElementById("history-list")) {
         renderAll();
       }
+
     } else {
-      // First time user? Push empty local state to cloud
-      saveState();
+      // First time - no data in Firebase yet
+      // Check if localStorage has any data as starting point
+      console.log("📦 No Firebase data found. Checking localStorage...");
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const stored = JSON.parse(raw);
+          state = Object.assign(state, stored);
+          console.log("📦 Loaded from localStorage as starting point");
+          // Push this to Firebase immediately
+          saveState();
+        }
+      } catch (e) { }
+
+      firebaseReady = true;
+      if (document.getElementById("history-list")) {
+        renderAll();
+      }
     }
   }, (error) => {
-    console.warn("Firebase listener error, continuing with local offline data", error);
+    // Firebase failed - fall back to localStorage
+    console.warn("Firebase unavailable, using localStorage fallback", error);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const stored = JSON.parse(raw);
+        state = Object.assign(state, stored);
+        console.log("📦 Offline mode: loaded from localStorage");
+      }
+    } catch (e) { }
+
+    firebaseReady = true;
+    if (document.getElementById("history-list")) {
+      renderAll();
+    }
   });
 }
 
 async function saveState() {
-  state.version = (state.version || 0) + 1;
-
-  // Always save to LocalStorage first
+  // Always save to localStorage first (instant, offline safe)
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) { }
 
-  // Then sync to Firebase
+  // Then push to Firebase (syncs across all devices)
   try {
     await setDoc(doc(db, "users", USER_ID), state);
+    console.log("✅ Saved to Firebase");
   } catch (e) {
-    console.warn("Firebase save failed, data kept locally", e);
+    console.warn("Firebase save failed - kept in localStorage", e);
   }
 }
 
@@ -193,10 +209,8 @@ function initAudio() {
 
 function createBeep() {
   if (!globalAudioCtx) return { start() { }, stop() { } };
-
   try {
     if (globalAudioCtx.state === 'suspended') globalAudioCtx.resume();
-
     function beepOnce() {
       try {
         const osc = globalAudioCtx.createOscillator();
@@ -212,7 +226,6 @@ function createBeep() {
         osc.stop(globalAudioCtx.currentTime + 0.4);
       } catch (e) { }
     }
-
     let loop = null;
     return {
       start() {
@@ -227,23 +240,15 @@ function createBeep() {
   }
 }
 
-function startAlarmSound() {
-  stopAlarmSound();
-  alarmAudio = createBeep();
-  alarmAudio.start();
-}
-function stopAlarmSound() {
-  if (alarmAudio) { alarmAudio.stop(); alarmAudio = null; }
-}
+function startAlarmSound() { stopAlarmSound(); alarmAudio = createBeep(); alarmAudio.start(); }
+function stopAlarmSound() { if (alarmAudio) { alarmAudio.stop(); alarmAudio = null; } }
 
 /* =====================================================
    NOTIFICATIONS
    ===================================================== */
 function requestNotifPermission() {
   if (!('Notification' in window)) return;
-  Notification.requestPermission().then(p => {
-    if (p === 'granted') hideBanner();
-  });
+  Notification.requestPermission().then(p => { if (p === 'granted') hideBanner(); });
 }
 
 function showNotif(title, body) {
@@ -252,7 +257,6 @@ function showNotif(title, body) {
     const n = new Notification(title, {
       body,
       icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Crect width="64" height="64" rx="12" fill="%23ff6b00"/%3E%3Ctext x="50%25" y="55%25" font-size="40" text-anchor="middle" dominant-baseline="middle"%3E📚%3C/text%3E%3C/svg%3E',
-      badge: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Ctext y=".9em" font-size="60"%3E📚%3C/text%3E%3C/svg%3E',
       requireInteraction: true,
       vibrate: [300, 100, 300],
       tag: 'studytracker'
@@ -271,7 +275,6 @@ function showBanner() {
    DOM HELPERS
    ===================================================== */
 function el(id) { return document.getElementById(id); }
-function toggleClass(elem, cls, force) { elem.classList.toggle(cls, force); }
 
 /* =====================================================
    TIMER ENGINE
@@ -293,11 +296,11 @@ function startTickLoop() {
   tickTimer();
 }
 
-function stopTickLoop() { clearInterval(tickInterval); }
+function stopTickLoop() { clearInterval(tickInterval); tickInterval = null; }
 
 function tickTimer() {
   if (!state.activeSlot) { stopTickLoop(); renderTimerIdle(); return; }
-  if (state.activeSlot.onBreak) return; // break tick handled separately
+  if (state.activeSlot.onBreak) return;
 
   const remMs = getRemainingMs();
   const remSec = Math.ceil(remMs / 1000);
@@ -340,10 +343,7 @@ function renderTimerIdle() {
   el('timer-status-dot').className = 'timer-status-dot';
   el('timer-card').className = 'timer-card';
   el('timer-progress-bar').style.width = '100%';
-
-  const cd = el('countdown-display');
-  cd.classList.remove('urgent', 'warning');
-
+  el('countdown-display').classList.remove('urgent', 'warning');
   el('btn-take-break').classList.add('hidden');
   el('btn-end-session').classList.add('hidden');
   el('break-status').classList.add('hidden');
@@ -356,7 +356,6 @@ function renderTimerActive() {
   el('timer-task-display').textContent = slot.task;
   el('timer-status-dot').className = 'timer-status-dot ' + (slot.onBreak ? 'break' : 'active');
   el('timer-card').className = 'timer-card ' + (slot.onBreak ? 'break-mode' : 'active-session');
-
   el('btn-take-break').classList.toggle('hidden', slot.onBreak);
   el('btn-end-session').classList.remove('hidden');
   lockForm();
@@ -377,20 +376,13 @@ function startSession() {
 
   const now = new Date();
   const todayPrefix = `${fmtDate(now)}T`;
-
   let startTs = new Date(todayPrefix + start).getTime();
   let endTs = new Date(todayPrefix + end).getTime();
 
-  if (endTs <= startTs) endTs += 86400000; // crosses midnight
-
-  if (endTs <= nowMs()) {
-    hint.textContent = '⚠ End time is in the past. Adjust your times.';
-    return;
-  }
+  if (endTs <= startTs) endTs += 86400000;
+  if (endTs <= nowMs()) { hint.textContent = '⚠ End time is in the past.'; return; }
 
   hint.textContent = '';
-
-  // If start time is in the past, begin immediately
   if (startTs < nowMs()) startTs = nowMs();
 
   state.activeSlot = {
@@ -402,6 +394,7 @@ function startSession() {
     breakStartTs: null,
     onBreak: false
   };
+
   saveState();
   renderTimerActive();
   startTickLoop();
@@ -410,9 +403,7 @@ function startSession() {
 
 function setDefaultTimes() {
   const now = new Date();
-  const hh = pad(now.getHours());
-  const mm = pad(now.getMinutes());
-  el('start-time').value = `${hh}:${mm}`;
+  el('start-time').value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const end = new Date(now.getTime() + 3600000);
   el('end-time').value = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
 }
@@ -457,8 +448,6 @@ function startBreak() {
   saveState();
 
   renderTimerActive();
-
-  // Show break countdown
   el('break-status').classList.remove('hidden');
   startBreakTick(mins * 60);
 }
@@ -466,13 +455,9 @@ function startBreak() {
 function startBreakTick(totalSec) {
   clearInterval(breakTickInterval);
   let remSec = totalSec;
-
   function tick() {
     el('break-countdown').textContent = fmtMS(remSec);
-    if (remSec <= 0) {
-      clearInterval(breakTickInterval);
-      endBreak();
-    }
+    if (remSec <= 0) { clearInterval(breakTickInterval); endBreak(); }
     remSec--;
   }
   tick();
@@ -494,11 +479,10 @@ function endBreak() {
 }
 
 /* =====================================================
-   END SESSION MANUALLY
+   END SESSION
    ===================================================== */
 function endSessionManual() {
   if (!state.activeSlot) return;
-  // Force trigger alarm (user can mark as complete or failed)
   stopTickLoop();
   clearInterval(breakTickInterval);
   triggerAlarm();
@@ -509,24 +493,21 @@ function endSessionManual() {
    ===================================================== */
 function triggerAlarm() {
   if (!state.activeSlot) return;
-  const task = state.activeSlot.task;
-
   startAlarmSound();
-  showNotif("⏰ Time's Up!", `Did you complete: ${task}?`);
-
-  el('alarm-task-name').textContent = task;
+  showNotif("⏰ Time's Up!", `Did you complete: ${state.activeSlot.task}?`);
+  el('alarm-task-name').textContent = state.activeSlot.task;
   el('alarm-overlay').classList.remove('hidden');
 }
 
 function resolveAlarm(completed) {
   stopAlarmSound();
   el('alarm-overlay').classList.add('hidden');
-
   if (!state.activeSlot) return;
+
   const slot = state.activeSlot;
   const todayDate = fmtDate(new Date());
-
   if (!state.history[todayDate]) state.history[todayDate] = [];
+
   state.history[todayDate].push({
     id: slot.id,
     task: slot.task,
@@ -556,11 +537,9 @@ function updateStreak(dateStr) {
   const dayCompleted = dayHistory.some(s => s.result === 'completed');
 
   if (dayCompleted) {
-    // Check if yesterday had a streak going
     const yesterday = fmtDate(new Date(new Date(dateStr).getTime() - 86400000));
     const prevHistory = state.history[yesterday] || [];
     const prevCompleted = prevHistory.some(s => s.result === 'completed');
-
     if (prevCompleted || state.lastDate === yesterday) {
       state.streak++;
     } else {
@@ -578,40 +557,24 @@ function updateStreak(dateStr) {
 function renderStreakBadge() {
   el('streak-count').textContent = state.streak;
   el('stat-streak').textContent = state.bestStreak;
-  const badge = el('streak-badge');
-  badge.classList.toggle('on-fire', state.streak >= 3);
+  el('streak-badge').classList.toggle('on-fire', state.streak >= 3);
 }
 
 /* =====================================================
-   HISTORY RENDER
+   HISTORY
    ===================================================== */
 function renderHistory() {
   const list = el('history-list');
   const dayHistory = state.history[today()] || [];
 
-  if (dayHistory.length === 0) {
+  if (dayHistory.length === 0 && !state.activeSlot) {
     list.innerHTML = '<p class="empty-state">No sessions yet today. Start one above!</p>';
     return;
   }
 
   list.innerHTML = '';
-  [...dayHistory].reverse().forEach(s => {
-    const div = document.createElement('div');
-    div.className = 'history-item';
-    const icon = s.result === 'completed' ? '✅' : '❌';
-    const badge = s.result === 'completed' ? 'completed' : 'failed';
-    div.innerHTML = `
-      <span class="history-status-icon">${icon}</span>
-      <div class="history-info">
-        <div class="history-task">${escHtml(s.task)}</div>
-        <div class="history-time">${fmtTimestamp(s.startTs)} – ${fmtTimestamp(s.endTs)}</div>
-      </div>
-      <span class="history-badge ${badge}">${s.result}</span>
-    `;
-    list.appendChild(div);
-  });
 
-  // Show active slot if any
+  // Show active slot at top
   if (state.activeSlot) {
     const div = document.createElement('div');
     div.className = 'history-item';
@@ -623,23 +586,35 @@ function renderHistory() {
       </div>
       <span class="history-badge active">active</span>
     `;
-    list.insertBefore(div, list.firstChild);
+    list.appendChild(div);
   }
+
+  [...dayHistory].reverse().forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    const icon = s.result === 'completed' ? '✅' : '❌';
+    div.innerHTML = `
+      <span class="history-status-icon">${icon}</span>
+      <div class="history-info">
+        <div class="history-task">${escHtml(s.task)}</div>
+        <div class="history-time">${fmtTimestamp(s.startTs)} – ${fmtTimestamp(s.endTs)}</div>
+      </div>
+      <span class="history-badge ${s.result}">${s.result}</span>
+    `;
+    list.appendChild(div);
+  });
 }
 
 /* =====================================================
-   REMINDERS SYSTEM
+   REMINDERS
    ===================================================== */
 function addReminder() {
   const text = el('reminder-text').value.trim();
   const timeVal = el('reminder-time').value;
-
   if (!text) { alert('Please enter reminder text.'); return; }
   if (!timeVal) { alert('Please set a reminder time.'); return; }
-
   const ts = new Date(timeVal).getTime();
   if (ts <= nowMs()) { alert('Reminder time must be in the future.'); return; }
-
   state.reminders.push({ id: genId(), text, ts, triggered: false });
   saveState();
   el('reminder-text').value = '';
@@ -698,7 +673,6 @@ function checkReminders() {
       changed = true;
       startAlarmSound();
       showNotif('📌 Reminder!', r.text);
-      // auto-stop alarm after 10s for reminders
       setTimeout(stopAlarmSound, 10000);
     }
   });
@@ -706,7 +680,7 @@ function checkReminders() {
 }
 
 /* =====================================================
-   TODOS / NOTES SYSTEM
+   TODOS / NOTES
    ===================================================== */
 function addTodo() {
   const text = el('todo-text').value.trim();
@@ -739,6 +713,7 @@ function renderTodoGroup(type, listId, chipId, barId, emptyMsg) {
   const todos = state.todos.filter(t => t.type === type);
   const list = el(listId);
   if (!list || !el(chipId)) return;
+
   const done = todos.filter(t => t.done).length;
   const total = todos.length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -750,7 +725,10 @@ function renderTodoGroup(type, listId, chipId, barId, emptyMsg) {
     if (barId) el(barId).style.width = `${pct}%`;
   }
 
-  if (todos.length === 0) { list.innerHTML = `<p class="empty-state">${emptyMsg}</p>`; return; }
+  if (todos.length === 0) {
+    list.innerHTML = `<p class="empty-state">${emptyMsg}</p>`;
+    return;
+  }
 
   list.innerHTML = '';
   todos.forEach(t => {
@@ -758,8 +736,9 @@ function renderTodoGroup(type, listId, chipId, barId, emptyMsg) {
     div.className = 'todo-item' + (t.done ? ' done' : '');
     div.dataset.id = t.id;
 
-    // Notes don't need a checkbox, just a dot or nothing
-    const checkboxHtml = type === 'note' ? '<span class="todo-bullet">•</span>' : `<div class="todo-checkbox">${t.done ? '✓' : ''}</div>`;
+    const checkboxHtml = type === 'note'
+      ? '<span class="todo-bullet">•</span>'
+      : `<div class="todo-checkbox">${t.done ? '✓' : ''}</div>`;
 
     div.innerHTML = `
       ${checkboxHtml}
@@ -782,9 +761,7 @@ function renderTodoGroup(type, listId, chipId, barId, emptyMsg) {
    CALENDAR
    ===================================================== */
 function renderCalendar() {
-  const title = el('cal-month-title');
-  title.textContent = `${MONTHS[calendarMonth]} ${calendarYear}`;
-
+  el('cal-month-title').textContent = `${MONTHS[calendarMonth]} ${calendarYear}`;
   const grid = el('calendar-grid');
   grid.innerHTML = '';
 
@@ -793,13 +770,10 @@ function renderCalendar() {
   const daysInPrev = new Date(calendarYear, calendarMonth, 0).getDate();
   const todayStr = today();
 
-  // Previous month trailing days
   for (let i = firstDay - 1; i >= 0; i--) {
-    const day = createCalDay(daysInPrev - i, 'other-month');
-    grid.appendChild(day);
+    grid.appendChild(createCalDay(daysInPrev - i, 'other-month'));
   }
 
-  // Current month days
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${calendarYear}-${pad(calendarMonth + 1)}-${pad(d)}`;
     const sessions = state.history[dateStr] || [];
@@ -813,11 +787,9 @@ function renderCalendar() {
       !isToday && !hasCompleted && hasFailed ? 'missed' : ''
     ].filter(Boolean);
 
-    const day = createCalDay(d, ...classes);
-    grid.appendChild(day);
+    grid.appendChild(createCalDay(d, ...classes));
   }
 
-  // Next month leading days
   const total = grid.children.length;
   const remaining = total % 7 === 0 ? 0 : 7 - (total % 7);
   for (let i = 1; i <= remaining; i++) {
@@ -856,11 +828,12 @@ function initTabs() {
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       const target = tab.dataset.tab;
-      // Update tab buttons
-      document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+      document.querySelectorAll('.tab').forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
       tab.classList.add('active');
       tab.setAttribute('aria-selected', 'true');
-      // Update tab content panels - remove both hidden and active, then set active on target
       document.querySelectorAll('.tab-content').forEach(c => {
         c.classList.remove('active');
         c.classList.add('hidden');
@@ -880,15 +853,14 @@ function initTabs() {
    ===================================================== */
 function checkExpiredSlot() {
   if (!state.activeSlot) return;
+
   if (state.activeSlot.onBreak) {
-    // Fix up break if app was closed during break
     const breakElapsed = nowMs() - state.activeSlot.breakStartTs;
     const expected = state.activeSlot._breakDurationMs || 300000;
     if (breakElapsed >= expected) {
       endBreak();
       return;
     }
-    // Resume break countdown with remaining time
     const remSec = Math.ceil((expected - breakElapsed) / 1000);
     renderTimerActive();
     el('break-status').classList.remove('hidden');
@@ -898,7 +870,6 @@ function checkExpiredSlot() {
 
   const remMs = getRemainingMs();
   if (remMs <= 0) {
-    // Slot already expired while away
     triggerAlarm();
   } else {
     renderTimerActive();
@@ -930,7 +901,7 @@ function initPWA() {
 }
 
 /* =====================================================
-   SECURITY / XSS
+   SECURITY / XSS PROTECTION
    ===================================================== */
 function escHtml(str) {
   if (!str) return '';
@@ -946,37 +917,29 @@ function escHtml(str) {
    EVENT LISTENERS
    ===================================================== */
 function initEvents() {
-  // Session
   el('btn-start-session').addEventListener('click', startSession);
   el('task-name').addEventListener('keydown', e => { if (e.key === 'Enter') startSession(); });
 
-  // Break
   el('btn-take-break').addEventListener('click', openBreakModal);
   el('btn-cancel-break').addEventListener('click', closeBreakModal);
   el('btn-start-break').addEventListener('click', startBreak);
 
-  // End session
   el('btn-end-session').addEventListener('click', () => {
     if (confirm('End this session now?')) endSessionManual();
   });
 
-  // Alarm accountability
   el('btn-yes').addEventListener('click', () => resolveAlarm(true));
   el('btn-no').addEventListener('click', () => resolveAlarm(false));
 
-  // Notifications banner
   el('btn-enable-notif').addEventListener('click', requestNotifPermission);
   el('btn-dismiss-notif').addEventListener('click', hideBanner);
 
-  // Reminders
   el('btn-add-reminder').addEventListener('click', addReminder);
   el('reminder-text').addEventListener('keydown', e => { if (e.key === 'Enter') addReminder(); });
 
-  // Todos
   el('btn-add-todo').addEventListener('click', addTodo);
   el('todo-text').addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
 
-  // Calendar nav
   el('cal-prev').addEventListener('click', () => {
     calendarMonth--;
     if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
@@ -988,10 +951,12 @@ function initEvents() {
     renderCalendar();
   });
 
-  // Break modal keyboard
   el('break-modal').addEventListener('keydown', e => { if (e.key === 'Escape') closeBreakModal(); });
 }
 
+/* =====================================================
+   RENDER ALL
+   ===================================================== */
 function renderAll() {
   renderStreakBadge();
   renderHistory();
@@ -1005,7 +970,7 @@ function renderAll() {
    INIT
    ===================================================== */
 async function init() {
-  console.log("🚀 Initializing App...");
+  console.log("🚀 StudyTracker initializing...");
   initTabs();
   initEvents();
   initPWA();
@@ -1018,10 +983,11 @@ async function init() {
   checkExpiredSlot();
   startReminderLoop();
 
-  // Unlock audio context on any user interaction
   document.addEventListener('click', initAudio, { once: true });
   document.addEventListener('touchstart', initAudio, { once: true });
   document.addEventListener('keydown', initAudio, { once: true });
+
+  console.log("✅ StudyTracker ready!");
 }
 
 if (document.readyState === 'loading') {
