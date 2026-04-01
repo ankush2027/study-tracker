@@ -75,16 +75,16 @@
 
   <!-- NAV TABS -->
   <nav class="tabs" role="tablist" aria-label="Main navigation">
-    <button class="tab active" data-tab="timer" role="tab" aria-selected="true" id="tab-btn-timer">⏱ Timer</button>
+    <button class="tab active" data-tab="calendar" role="tab" aria-selected="true" id="tab-btn-calendar">📅 Calendar</button>
+    <button class="tab" data-tab="timer" role="tab" aria-selected="false" id="tab-btn-timer">⏱ Timer</button>
+    <button class="tab" data-tab="todos" role="tab" aria-selected="false" id="tab-btn-todos">📝 Tasks</button>
     <button class="tab" data-tab="reminders" role="tab" aria-selected="false" id="tab-btn-reminders">📌 Reminders</button>
-    <button class="tab" data-tab="todos" role="tab" aria-selected="false" id="tab-btn-todos">📝 Tasks & Notes</button>
-    <button class="tab" data-tab="calendar" role="tab" aria-selected="false" id="tab-btn-calendar">📅 Calendar</button>
   </nav>
 
   <main class="main" id="main">
 
     <!-- ========== TAB: TIMER ========== -->
-    <section id="tab-timer" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-timer">
+    <section id="tab-timer" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-timer">
 
       <!-- COUNTDOWN DISPLAY -->
       <div class="timer-card" id="timer-card">
@@ -142,7 +142,7 @@
 
     <!-- ========== TAB: REMINDERS ========== -->
     <section id="tab-reminders" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-reminders">
-      <div class="card">
+      <div class="card card-reminders">
         <h2 class="section-title">📌 Add Reminder</h2>
         <div class="form-group">
           <label class="form-label" for="reminder-text">Reminder Note</label>
@@ -154,7 +154,7 @@
         </div>
         <button id="btn-add-reminder" class="btn btn-primary btn-full">📌 Add Reminder</button>
       </div>
-      <div class="card">
+      <div class="card card-reminders">
         <h2 class="section-title">📋 Active Reminders</h2>
         <div id="reminders-list" class="reminders-list">
           <p class="empty-state">No reminders set. Add one above!</p>
@@ -181,7 +181,7 @@
         <button id="btn-add-todo" class="btn btn-primary btn-full">✅ Add</button>
       </div>
 
-      <div class="card">
+      <div class="card card-daily">
         <div class="section-header-row">
           <h2 class="section-title">📅 Daily Goals</h2>
           <span class="progress-chip" id="daily-progress">0/0</span>
@@ -194,7 +194,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card card-weekly">
         <div class="section-header-row">
           <h2 class="section-title">📆 Weekly Goals</h2>
           <span class="progress-chip" id="weekly-progress">0/0</span>
@@ -207,7 +207,7 @@
         </div>
       </div>
       
-      <div class="card">
+      <div class="card card-notes">
         <div class="section-header-row">
           <h2 class="section-title">📝 Notes & Doubts</h2>
           <span class="progress-chip" id="note-progress">0</span>
@@ -219,7 +219,16 @@
     </section>
 
     <!-- ========== TAB: CALENDAR ========== -->
-    <section id="tab-calendar" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-calendar">
+    <section id="tab-calendar" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-calendar">
+      
+      <!-- WEEKLY OVERVIEW -->
+      <div class="card card-weekly-overview">
+        <h2 class="section-title">📅 This Week</h2>
+        <div class="weekly-row" id="weekly-row">
+          <!-- populated dynamically -->
+        </div>
+      </div>
+
       <div class="card">
         <div class="calendar-header">
           <button class="btn btn-ghost btn-icon" id="cal-prev" aria-label="Previous month">‹</button>
@@ -227,9 +236,11 @@
           <button class="btn btn-ghost btn-icon" id="cal-next" aria-label="Next month">›</button>
         </div>
         <div class="calendar-legend">
-          <span class="legend-dot completed" aria-hidden="true"></span><span>Completed</span>
+          <span class="legend-dot completed" aria-hidden="true"></span><span>Done</span>
+          <span class="legend-dot partial" aria-hidden="true"></span><span>Partial</span>
           <span class="legend-dot missed" aria-hidden="true"></span><span>Missed</span>
           <span class="legend-dot today" aria-hidden="true"></span><span>Today</span>
+          <span class="legend-dot blue-dot" aria-hidden="true"></span><span>Reminders</span>
         </div>
         <div class="calendar-grid-wrap">
           <div class="calendar-weekdays">
@@ -260,6 +271,34 @@
     </section>
 
   </main>
+
+  <!-- DAY VIEW MODAL -->
+  <div id="day-view-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="day-view-box">
+      <div class="day-view-header">
+        <h2 id="day-view-title" class="section-title">Date</h2>
+        <button id="btn-close-day-view" class="btn btn-ghost btn-icon">✕</button>
+      </div>
+      <div class="day-view-content">
+        <div class="day-section">
+          <h3>⏱ Sessions</h3>
+          <div id="day-view-sessions" class="history-list"></div>
+        </div>
+        <div class="day-section card-daily">
+          <h3>✅ Tasks</h3>
+          <div id="day-view-todos" class="todos-list"></div>
+        </div>
+        <div class="day-section card-notes">
+          <h3>📝 Doubts</h3>
+          <div id="day-view-notes" class="todos-list"></div>
+        </div>
+        <div class="day-section card-reminders">
+          <h3>📌 Reminders</h3>
+          <div id="day-view-reminders" class="reminders-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="app.js"></script>
 </body>
