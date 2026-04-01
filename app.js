@@ -708,11 +708,17 @@ function checkReminders() {
 function addTodo() {
   const text = el('todo-text').value.trim();
   const type = el('todo-type').value;
+  const dateVal = el('todo-date').value;
   if (!text) { alert('Please enter text.'); return; }
-  state.todos.push({ id: genId(), text, type, done: false, createdAt: nowMs() });
+  
+  const targetDate = dateVal || today();
+  state.todos.push({ id: genId(), text, type, done: false, createdAt: nowMs(), targetDate });
   saveState();
   el('todo-text').value = '';
+  // Do not clear the date field, so the user can easily add multiple tasks for the selected date
   renderTodos();
+  renderCalendar();
+  renderWeeklyView();
 }
 
 function toggleTodo(id) {
@@ -727,7 +733,7 @@ function toggleTodo(id) {
     // Also re-render day view if open
     const modal = el('day-view-modal');
     if (modal && !modal.classList.contains('hidden')) {
-      const dateStr = new Date(todo.createdAt).toISOString().split('T')[0];
+      const dateStr = todo.targetDate || new Date(todo.createdAt).toISOString().split('T')[0];
       openDayView(dateStr);
     }
   }
@@ -745,13 +751,32 @@ function renderTodos() {
   renderTodoGroup('note', 'note-todos-list', 'note-progress', null, 'No notes or doubts yet.');
 }
 
+function getWeekRange(dateStr) {
+  const d = new Date(dateStr);
+  const day = d.getDay(); // 0 is Sunday, 1 is Monday
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const start = new Date(d.setDate(diff));
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start: fmtDate(start), end: fmtDate(end) };
+}
+
 function renderTodoGroup(type, listId, chipId, barId, emptyMsg) {
   let todos = state.todos.filter(t => t.type === type);
+  const todayStr = today();
   
-  // Only show today's daily tasks and notes in the main tab
   if (type === 'daily' || type === 'note') {
-    const todayStr = today();
-    todos = todos.filter(t => new Date(t.createdAt).toISOString().split('T')[0] === todayStr);
+    todos = todos.filter(t => (t.targetDate || new Date(t.createdAt).toISOString().split('T')[0]) === todayStr);
+  } else if (type === 'weekly') {
+    // INNOVATION: Weekly goals auto-clear each week. They only show if targeting current Mon-Sun.
+    const { start, end } = getWeekRange(todayStr);
+    todos = todos.filter(t => {
+      const tDate = t.targetDate || new Date(t.createdAt).toISOString().split('T')[0];
+      return tDate >= start && tDate <= end;
+    });
+    
+    const secTitle = document.querySelector('.card-weekly .section-title');
+    if (secTitle) secTitle.textContent = `📆 Weekly Goals (${start.slice(5)} to ${end.slice(5)})`;
   }
 
   const list = el(listId);
@@ -821,7 +846,7 @@ function renderCalendar() {
     const dateStr = `${calendarYear}-${pad(calendarMonth + 1)}-${pad(d)}`;
     const sessions = state.history[dateStr] || [];
     
-    const dayTodos = state.todos.filter(t => new Date(t.createdAt).toISOString().split('T')[0] === dateStr);
+    const dayTodos = state.todos.filter(t => (t.targetDate || new Date(t.createdAt).toISOString().split('T')[0]) === dateStr);
     const dayRems = state.reminders.filter(r => new Date(r.ts).toISOString().split('T')[0] === dateStr);
     
     const isToday = dateStr === todayStr;
@@ -943,7 +968,7 @@ function renderWeeklyView() {
     const isToday = dateStr === todayStr;
 
     const sessions = state.history[dateStr] || [];
-    const dayTodos = state.todos.filter(t => new Date(t.createdAt).toISOString().split('T')[0] === dateStr);
+    const dayTodos = state.todos.filter(t => (t.targetDate || new Date(t.createdAt).toISOString().split('T')[0]) === dateStr);
     
     let tasksCount = sessions.length;
     let completedCount = sessions.filter(s => s.result === 'completed').length;
@@ -997,7 +1022,7 @@ function openDayView(dateStr) {
     });
   }
 
-  const dayTodos = state.todos.filter(t => new Date(t.createdAt).toISOString().split('T')[0] === dateStr);
+  const dayTodos = state.todos.filter(t => (t.targetDate || new Date(t.createdAt).toISOString().split('T')[0]) === dateStr);
   const tasks = dayTodos.filter(t => t.type !== 'note');
   const secTasks = el('day-view-todos');
   if (tasks.length === 0) {

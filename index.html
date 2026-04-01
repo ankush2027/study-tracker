@@ -170,13 +170,19 @@
           <label class="form-label" for="todo-text">Goal / Task / Note</label>
           <input type="text" id="todo-text" class="input-field" placeholder="e.g. Solve 3 LeetCode problems or write a doubt" maxlength="200" autocomplete="off" />
         </div>
-        <div class="form-group">
-          <label class="form-label" for="todo-type">Type</label>
-          <select id="todo-type" class="input-field select-field">
-            <option value="daily">📅 Daily Goal</option>
-            <option value="weekly">📆 Weekly Goal</option>
-            <option value="note">📝 Note / Doubt</option>
-          </select>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="todo-type">Type</label>
+            <select id="todo-type" class="input-field select-field">
+              <option value="daily">📅 Daily</option>
+              <option value="weekly">📆 Weekly</option>
+              <option value="note">📝 Note</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="todo-date">Date / Week of</label>
+            <input type="date" id="todo-date" class="input-field" />
+          </div>
         </div>
         <button id="btn-add-todo" class="btn btn-primary btn-full">✅ Add</button>
       </div>
