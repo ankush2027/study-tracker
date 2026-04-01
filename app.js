@@ -107,15 +107,25 @@ async function loadState() {
       // Keep local slot if it's running
       const localSlot = state.activeSlot;
 
-      // SAFETY CHECK: Removed version logic, Firebase always wins.
-      
-      // FIREBASE ALWAYS WINS (as requested)
+      // SAFEGUARD: If local data is newer (e.g. user refreshed before Firebase fully saved),
+      // we must retain local data and push it back up to avoid "everything goes back".
+      const localTime = state.lastUpdated || 0;
+      const remoteTime = remoteState.lastUpdated || 0;
+
+      if (localTime > remoteTime) {
+        console.warn(`🛡️ Local data is newer than cloud data. Retaining local changes.`);
+        setTimeout(saveState, 500);
+        return; // Early return prevents overwriting local data with older remote data
+      }
+
+      // FIREBASE WINS: when it provides the newest valid state
       state.history = remoteState.history || {};
       state.todos = remoteState.todos || [];
       state.reminders = remoteState.reminders || [];
       state.streak = remoteState.streak || 0;
       state.bestStreak = remoteState.bestStreak || 0;
       state.lastDate = remoteState.lastDate || null;
+      state.lastUpdated = remoteTime;
 
       // Auto-sync local active slot to cloud if cloud lost it
       if (localSlot && !remoteState.activeSlot) {
@@ -147,6 +157,8 @@ async function loadState() {
 }
 
 async function saveState() {
+  state.lastUpdated = Date.now();
+
   // Always save to LocalStorage first
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
