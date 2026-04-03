@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#ff6b00" />
-  <meta name="description" content="Personal study and work tracker for CSE students with focus mode, countdown timer, streaks, and accountability." />
+  <meta name="description" content="StudyTracker — Focus mode, countdown timer, goals, and accountability for students." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="StudyTracker" />
@@ -16,9 +16,14 @@
 </head>
 <body>
 
+  <!-- ============================================================
+       OVERLAYS
+  ============================================================ -->
+
   <!-- ALARM OVERLAY -->
   <div id="alarm-overlay" class="alarm-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="alarm-title">
-    <div class="alarm-box">
+    <div class="alarm-tap-hint" id="alarm-tap-hint">Tap anywhere to dismiss</div>
+    <div class="alarm-box" id="alarm-box">
       <div class="alarm-pulse-ring"></div>
       <div class="alarm-icon">⏰</div>
       <h2 class="alarm-title" id="alarm-title">Time's Up!</h2>
@@ -28,6 +33,19 @@
         <button id="btn-yes" class="btn btn-success btn-large" aria-label="Yes, I completed the task">✅ Yes, Completed!</button>
         <button id="btn-no" class="btn btn-danger btn-large" aria-label="No, I did not complete the task">❌ No, Failed</button>
       </div>
+      <button id="btn-dismiss-alarm" class="btn btn-ghost alarm-dismiss-btn">✕ Dismiss Alarm</button>
+    </div>
+  </div>
+
+  <!-- REMINDER ALARM OVERLAY -->
+  <div id="reminder-overlay" class="alarm-overlay reminder-alarm-overlay hidden" role="dialog" aria-modal="true">
+    <div class="alarm-tap-hint">Tap anywhere to dismiss</div>
+    <div class="alarm-box reminder-alarm-box">
+      <div class="alarm-pulse-ring"></div>
+      <div class="alarm-icon">📌</div>
+      <h2 class="alarm-title">Reminder!</h2>
+      <p class="alarm-task-name" id="reminder-alarm-text"></p>
+      <button id="btn-dismiss-reminder" class="btn btn-primary btn-large">✓ Got It</button>
     </div>
   </div>
 
@@ -47,236 +65,32 @@
     </div>
   </div>
 
-  <!-- NOTIFICATION BANNER -->
-  <div id="notif-banner" class="notif-banner hidden" role="alert">
-    <span>🔔 Enable notifications for timer alerts &amp; reminders</span>
-    <div class="notif-banner-actions">
-      <button id="btn-enable-notif" class="btn btn-sm btn-primary">Enable</button>
-      <button id="btn-dismiss-notif" class="btn btn-sm btn-ghost">Dismiss</button>
+  <!-- ADD SESSION MODAL (from FAB) -->
+  <div id="add-session-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="add-session-modal-title">
+    <div class="modal-box modal-box-lg">
+      <h3 id="add-session-modal-title">➕ New Session</h3>
+      <p class="modal-subtitle">Schedule your next study block</p>
+      <div class="form-group">
+        <label class="form-label" for="modal-task-name">Task / Subject</label>
+        <input type="text" id="modal-task-name" class="input-field" placeholder="e.g. Operating Systems Ch. 3" maxlength="80" autocomplete="off" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="modal-start-time">Start Time</label>
+          <input type="time" id="modal-start-time" class="input-field" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modal-end-time">End Time</label>
+          <input type="time" id="modal-end-time" class="input-field" />
+        </div>
+      </div>
+      <p class="form-hint" id="modal-form-hint" role="alert"></p>
+      <div class="modal-actions">
+        <button id="btn-modal-start-session" class="btn btn-primary">🚀 Add to Queue</button>
+        <button id="btn-modal-cancel" class="btn btn-ghost">Cancel</button>
+      </div>
     </div>
   </div>
-
-  <!-- HEADER -->
-  <header class="header">
-    <div class="header-inner">
-      <div class="logo">
-        <span class="logo-icon">📚</span>
-        <span class="logo-text">StudyTracker</span>
-      </div>
-      <div class="header-right">
-        <div class="streak-badge" id="streak-badge" title="Current Streak" aria-label="Current streak">
-          <span class="streak-fire" aria-hidden="true">🔥</span>
-          <span class="streak-count" id="streak-count">0</span>
-        </div>
-        <button class="install-btn hidden" id="install-btn" aria-label="Install app">⬇ Install</button>
-      </div>
-    </div>
-  </header>
-
-  <!-- NAV TABS -->
-  <nav class="tabs" role="tablist" aria-label="Main navigation">
-    <button class="tab active" data-tab="calendar" role="tab" aria-selected="true" id="tab-btn-calendar">📅 Calendar</button>
-    <button class="tab" data-tab="timer" role="tab" aria-selected="false" id="tab-btn-timer">⏱ Timer</button>
-    <button class="tab" data-tab="todos" role="tab" aria-selected="false" id="tab-btn-todos">📝 Tasks</button>
-    <button class="tab" data-tab="reminders" role="tab" aria-selected="false" id="tab-btn-reminders">📌 Reminders</button>
-  </nav>
-
-  <main class="main" id="main">
-
-    <!-- ========== TAB: TIMER ========== -->
-    <section id="tab-timer" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-timer">
-
-      <!-- COUNTDOWN DISPLAY -->
-      <div class="timer-card" id="timer-card">
-        <div class="timer-status-row">
-          <span class="timer-label" id="timer-label">No Active Session</span>
-          <span class="timer-status-dot" id="timer-status-dot" aria-hidden="true"></span>
-        </div>
-        <div class="timer-task-name" id="timer-task-display"></div>
-        <div class="countdown-display" id="countdown-display" aria-live="polite" aria-label="Countdown timer">
-          <span id="time-hh">--</span><span class="colon">:</span><span id="time-mm">--</span><span class="colon">:</span><span id="time-ss">--</span>
-        </div>
-        <div class="timer-progress-wrap">
-          <div class="timer-progress-bar" id="timer-progress-bar"></div>
-        </div>
-        <div class="break-status hidden" id="break-status">
-          <span class="break-label">☕ Break ends in:</span>
-          <span class="break-countdown" id="break-countdown">00:00</span>
-        </div>
-        <div class="timer-controls" id="timer-controls">
-          <button class="btn btn-warning hidden" id="btn-take-break">☕ Take Break</button>
-          <button class="btn btn-danger hidden" id="btn-end-session">🏁 End Session</button>
-        </div>
-      </div>
-
-      <!-- NEW SLOT FORM -->
-      <div class="card slot-form-card" id="slot-form-card">
-        <h2 class="section-title">➕ New Study Session</h2>
-        <div class="form-group">
-          <label class="form-label" for="task-name">Task / Subject</label>
-          <input type="text" id="task-name" class="input-field" placeholder="e.g. Operating Systems Chapter 3" maxlength="80" autocomplete="off" />
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="start-time">Start Time</label>
-            <input type="time" id="start-time" class="input-field" />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="end-time">End Time</label>
-            <input type="time" id="end-time" class="input-field" />
-          </div>
-        </div>
-        <button id="btn-start-session" class="btn btn-primary btn-full btn-large">🚀 Start Session</button>
-        <p class="form-hint" id="form-hint" role="alert"></p>
-      </div>
-
-      <!-- SESSION HISTORY -->
-      <div class="card history-card">
-        <h2 class="section-title">📋 Today's Sessions</h2>
-        <div id="history-list" class="history-list">
-          <p class="empty-state">No sessions yet today. Start one above!</p>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- ========== TAB: REMINDERS ========== -->
-    <section id="tab-reminders" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-reminders">
-      <div class="card card-reminders">
-        <h2 class="section-title">📌 Add Reminder</h2>
-        <div class="form-group">
-          <label class="form-label" for="reminder-text">Reminder Note</label>
-          <input type="text" id="reminder-text" class="input-field" placeholder="e.g. Submit assignment before 11:59 PM" maxlength="120" autocomplete="off" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="reminder-time">Alert Date &amp; Time</label>
-          <input type="datetime-local" id="reminder-time" class="input-field" />
-        </div>
-        <button id="btn-add-reminder" class="btn btn-primary btn-full">📌 Add Reminder</button>
-      </div>
-      <div class="card card-reminders">
-        <h2 class="section-title">📋 Active Reminders</h2>
-        <div id="reminders-list" class="reminders-list">
-          <p class="empty-state">No reminders set. Add one above!</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========== TAB: TODOS ========== -->
-    <section id="tab-todos" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-todos">
-      <div class="card">
-        <h2 class="section-title">➕ Add Entry</h2>
-        <div class="form-group">
-          <label class="form-label" for="todo-text">Goal / Task / Note</label>
-          <input type="text" id="todo-text" class="input-field" placeholder="e.g. Solve 3 LeetCode problems or write a doubt" maxlength="200" autocomplete="off" />
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="todo-type">Type</label>
-            <select id="todo-type" class="input-field select-field">
-              <option value="daily">📅 Daily</option>
-              <option value="weekly">📆 Weekly</option>
-              <option value="note">📝 Note</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="todo-date">Date / Week of</label>
-            <input type="date" id="todo-date" class="input-field" />
-          </div>
-        </div>
-        <button id="btn-add-todo" class="btn btn-primary btn-full">✅ Add</button>
-      </div>
-
-      <div class="card card-daily">
-        <div class="section-header-row">
-          <h2 class="section-title">📅 Daily Goals</h2>
-          <span class="progress-chip" id="daily-progress">0/0</span>
-        </div>
-        <div class="progress-bar-wrap">
-          <div class="progress-bar-fill" id="daily-progress-bar"></div>
-        </div>
-        <div id="daily-todos-list" class="todos-list">
-          <p class="empty-state">No daily goals yet.</p>
-        </div>
-      </div>
-
-      <div class="card card-weekly">
-        <div class="section-header-row">
-          <h2 class="section-title">📆 Weekly Goals</h2>
-          <span class="progress-chip" id="weekly-progress">0/0</span>
-        </div>
-        <div class="progress-bar-wrap">
-          <div class="progress-bar-fill" id="weekly-progress-bar"></div>
-        </div>
-        <div id="weekly-todos-list" class="todos-list">
-          <p class="empty-state">No weekly goals yet.</p>
-        </div>
-      </div>
-      
-      <div class="card card-notes">
-        <div class="section-header-row">
-          <h2 class="section-title">📝 Notes & Doubts</h2>
-          <span class="progress-chip" id="note-progress">0</span>
-        </div>
-        <div id="note-todos-list" class="todos-list">
-          <p class="empty-state">No notes or doubts yet.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========== TAB: CALENDAR ========== -->
-    <section id="tab-calendar" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-calendar">
-      
-      <!-- WEEKLY OVERVIEW -->
-      <div class="card card-weekly-overview">
-        <h2 class="section-title">📅 This Week</h2>
-        <div class="weekly-row" id="weekly-row">
-          <!-- populated dynamically -->
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="calendar-header">
-          <button class="btn btn-ghost btn-icon" id="cal-prev" aria-label="Previous month">‹</button>
-          <h2 class="calendar-month-title" id="cal-month-title">March 2026</h2>
-          <button class="btn btn-ghost btn-icon" id="cal-next" aria-label="Next month">›</button>
-        </div>
-        <div class="calendar-legend">
-          <span class="legend-dot completed" aria-hidden="true"></span><span>Done</span>
-          <span class="legend-dot partial" aria-hidden="true"></span><span>Partial</span>
-          <span class="legend-dot missed" aria-hidden="true"></span><span>Missed</span>
-          <span class="legend-dot today" aria-hidden="true"></span><span>Today</span>
-          <span class="legend-dot blue-dot" aria-hidden="true"></span><span>Reminders</span>
-        </div>
-        <div class="calendar-grid-wrap">
-          <div class="calendar-weekdays">
-            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-          </div>
-          <div class="calendar-grid" id="calendar-grid" role="grid" aria-label="Calendar"></div>
-        </div>
-      </div>
-
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-value" id="stat-total">0</div>
-          <div class="stat-label">Sessions</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-completed">0</div>
-          <div class="stat-label">Completed</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-streak">0</div>
-          <div class="stat-label">Best Streak</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-hours">0h</div>
-          <div class="stat-label">Hours Tracked</div>
-        </div>
-      </div>
-    </section>
-
-  </main>
 
   <!-- DAY VIEW MODAL -->
   <div id="day-view-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
@@ -305,6 +119,537 @@
       </div>
     </div>
   </div>
+
+  <!-- NOTIFICATION BANNER -->
+  <div id="notif-banner" class="notif-banner hidden" role="alert">
+    <span>🔔 Enable notifications for timer alerts &amp; reminders</span>
+    <div class="notif-banner-actions">
+      <button id="btn-enable-notif" class="btn btn-sm btn-primary">Enable</button>
+      <button id="btn-dismiss-notif" class="btn btn-sm btn-ghost">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- JOURNEY READ MODAL -->
+  <div id="journey-read-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="day-view-box">
+      <div class="day-view-header">
+        <div>
+          <h2 id="journey-read-title" class="section-title" style="margin:0; font-size:1.1rem; color:var(--text);">Day X</h2>
+          <span id="journey-read-date" style="font-size:0.75rem; color:var(--muted);">Date</span>
+        </div>
+        <button id="btn-close-journey-read" class="btn btn-ghost btn-icon">✕</button>
+      </div>
+      <div class="day-view-content">
+        <p id="journey-read-text" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; color: var(--text2); margin:0;"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATE JOURNEY MODAL -->
+  <div id="create-journey-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <h3 id="create-journey-title">✨ New Journey</h3>
+      <div class="form-group">
+        <label class="form-label" for="new-journey-name">Journey Name</label>
+        <input type="text" id="new-journey-name" class="input-field" placeholder="e.g. Learn React, 100 Days of Code" maxlength="60" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pick Emoji</label>
+        <div id="new-journey-emojis" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+          <span class="emoji-picker-item selected" data-emoji="🔥">🔥</span>
+          <span class="emoji-picker-item" data-emoji="💪">💪</span>
+          <span class="emoji-picker-item" data-emoji="📖">📖</span>
+          <span class="emoji-picker-item" data-emoji="🎯">🎯</span>
+          <span class="emoji-picker-item" data-emoji="💻">💻</span>
+          <span class="emoji-picker-item" data-emoji="🧠">🧠</span>
+          <span class="emoji-picker-item" data-emoji="⚡">⚡</span>
+          <span class="emoji-picker-item" data-emoji="🌱">🌱</span>
+          <span class="emoji-picker-item" data-emoji="📝">📝</span>
+          <span class="emoji-picker-item" data-emoji="🎨">🎨</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="new-journey-date">Start Date</label>
+        <input type="date" id="new-journey-date" class="input-field" />
+      </div>
+      <div class="modal-actions">
+        <button id="btn-create-journey" class="btn btn-primary">Create</button>
+        <button id="btn-cancel-journey" class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       APP SHELL
+  ============================================================ -->
+  <div class="app-shell">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-inner">
+        <div class="logo">
+          <span class="logo-icon">📚</span>
+          <span class="logo-text">StudyTracker</span>
+        </div>
+        <div class="header-right">
+          <div class="streak-badge" id="streak-badge" title="Current Streak" aria-label="Current streak">
+            <span class="streak-fire" aria-hidden="true">🔥</span>
+            <span class="streak-count" id="streak-count">0</span>
+          </div>
+          <button class="install-btn hidden" id="install-btn" aria-label="Install app">⬇ Install</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- TAB SLIDES CONTAINER -->
+    <div class="tabs-viewport" id="tabs-viewport">
+
+      <!-- ========== TAB: HOME ========== -->
+      <section id="tab-home" class="tab-panel active" data-index="0">
+        <div class="home-scroll">
+
+          <!-- DATE + GREETING -->
+          <div class="home-greeting-block">
+            <div class="home-date" id="home-date"></div>
+            <div class="home-greeting" id="home-greeting">Good morning!</div>
+          </div>
+
+          <!-- PROGRESS RING + WEEKLY BARS -->
+          <div class="home-stats-row">
+            <div class="home-ring-wrap">
+              <svg class="progress-ring" viewBox="0 0 120 120" aria-label="Today's completion">
+                <circle class="ring-track" cx="60" cy="60" r="52" />
+                <circle class="ring-fill" id="ring-fill" cx="60" cy="60" r="52" />
+              </svg>
+              <div class="ring-inner">
+                <span class="ring-pct" id="ring-pct">0%</span>
+                <span class="ring-label">Today</span>
+              </div>
+            </div>
+            <div class="home-weekly-bars" id="home-weekly-bars">
+              <!-- 7 day bars populated by JS -->
+            </div>
+          </div>
+
+          <!-- ACTIVE TIMER CARD (shown only when session running) -->
+          <div class="home-active-card hidden" id="home-active-card">
+            <div class="hac-label">
+              <span class="hac-dot"></span>
+              <span id="hac-status">Session Active</span>
+            </div>
+            <div class="hac-task" id="hac-task"></div>
+            <div class="hac-countdown" id="hac-countdown">00:00:00</div>
+            <div class="hac-progress-wrap">
+              <div class="hac-progress-bar" id="hac-progress-bar"></div>
+            </div>
+            <div class="hac-next hidden" id="hac-next">
+              <span class="hac-next-label">Up next:</span>
+              <span id="hac-next-name"></span>
+              <span id="hac-next-time" class="hac-next-time"></span>
+            </div>
+            <button class="btn btn-ghost btn-sm hac-go-btn" id="hac-go-timer">Open Timer →</button>
+          </div>
+
+          <!-- UP NEXT CARD (shown when no session but queue has items) -->
+          <div class="home-next-card hidden" id="home-next-card">
+            <div class="hnc-label">⏭ Next Session</div>
+            <div class="hnc-task" id="hnc-task"></div>
+            <div class="hnc-time" id="hnc-time"></div>
+          </div>
+
+          <!-- TODAY'S SESSIONS (mini history) -->
+          <div class="card">
+            <div class="section-header-row">
+              <h2 class="section-title">📋 Today's Sessions</h2>
+              <span class="progress-chip" id="home-session-count">0</span>
+            </div>
+            <div id="home-history-list" class="history-list">
+              <p class="empty-state">No sessions yet today.</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ========== TAB: CALENDAR ========== -->
+      <section id="tab-calendar" class="tab-panel" data-index="1">
+        <div class="home-scroll">
+
+          <div class="card">
+            <div class="calendar-header">
+              <button class="btn btn-ghost btn-icon" id="cal-prev" aria-label="Previous month">‹</button>
+              <h2 class="calendar-month-title" id="cal-month-title">April 2026</h2>
+              <button class="btn btn-ghost btn-icon" id="cal-next" aria-label="Next month">›</button>
+            </div>
+            <div class="calendar-legend">
+              <span class="legend-dot completed" aria-hidden="true"></span><span>Done</span>
+              <span class="legend-dot partial" aria-hidden="true"></span><span>Partial</span>
+              <span class="legend-dot missed" aria-hidden="true"></span><span>Missed</span>
+              <span class="legend-dot blue-dot" aria-hidden="true"></span><span>Reminder</span>
+            </div>
+            <div class="calendar-grid-wrap">
+              <div class="calendar-weekdays">
+                <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+              </div>
+              <div class="calendar-grid" id="calendar-grid" role="grid" aria-label="Calendar"></div>
+            </div>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-total">0</div>
+              <div class="stat-label">Sessions</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-completed">0</div>
+              <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-streak">0</div>
+              <div class="stat-label">Best Streak</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-hours">0h</div>
+              <div class="stat-label">Hours</div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ========== TAB: TIMER ========== -->
+      <section id="tab-timer" class="tab-panel" data-index="2">
+        <div class="home-scroll">
+
+          <!-- MAIN TIMER DISPLAY -->
+          <div class="timer-card" id="timer-card">
+            <div class="timer-status-row">
+              <span class="timer-label" id="timer-label">No Active Session</span>
+              <span class="timer-status-dot" id="timer-status-dot" aria-hidden="true"></span>
+            </div>
+            <div class="timer-task-name" id="timer-task-display"></div>
+            <div class="countdown-display" id="countdown-display" aria-live="polite" aria-label="Countdown timer">
+              <span id="time-hh">--</span><span class="colon">:</span><span id="time-mm">--</span><span class="colon">:</span><span id="time-ss">--</span>
+            </div>
+            <div class="timer-progress-wrap">
+              <div class="timer-progress-bar" id="timer-progress-bar"></div>
+            </div>
+            <div class="break-status hidden" id="break-status">
+              <span class="break-label">☕ Break ends in:</span>
+              <span class="break-countdown" id="break-countdown">00:00</span>
+            </div>
+            <!-- UP NEXT in timer -->
+            <div class="timer-up-next hidden" id="timer-up-next">
+              <span class="tun-label">Up next:</span>
+              <span class="tun-task" id="tun-task"></span>
+              <span class="tun-time" id="tun-time"></span>
+            </div>
+            <div class="timer-controls" id="timer-controls">
+              <button class="btn btn-warning hidden" id="btn-take-break">☕ Break</button>
+              <button class="btn btn-danger hidden" id="btn-end-session">🏁 End</button>
+            </div>
+          </div>
+
+          <!-- SESSION QUEUE -->
+          <div class="card">
+            <div class="section-header-row">
+              <h2 class="section-title">📋 Session Queue</h2>
+              <span class="progress-chip" id="queue-count">0</span>
+            </div>
+            <div id="session-queue-list" class="history-list">
+              <p class="empty-state">No sessions queued. Add one below!</p>
+            </div>
+          </div>
+
+          <!-- ADD SESSION FORM -->
+          <div class="card slot-form-card" id="slot-form-card">
+            <h2 class="section-title">➕ Add Session to Queue</h2>
+            <div class="form-group">
+              <label class="form-label" for="task-name">Task / Subject</label>
+              <input type="text" id="task-name" class="input-field" placeholder="e.g. Operating Systems Chapter 3" maxlength="80" autocomplete="off" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="start-time">Start Time</label>
+                <input type="time" id="start-time" class="input-field" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="end-time">End Time</label>
+                <input type="time" id="end-time" class="input-field" />
+              </div>
+            </div>
+            <button id="btn-start-session" class="btn btn-primary btn-full btn-large">🚀 Add Session</button>
+            <p class="form-hint" id="form-hint" role="alert"></p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ========== TAB: TASKS ========== -->
+      <section id="tab-todos" class="tab-panel" data-index="3">
+        <div class="home-scroll">
+
+          <!-- ADD ENTRY FORM -->
+          <div class="card">
+            <h2 class="section-title">➕ Add Entry</h2>
+            <div class="form-group">
+              <label class="form-label" for="todo-text">Goal / Task / Doubt</label>
+              <input type="text" id="todo-text" class="input-field" placeholder="e.g. Solve 3 LeetCode problems" maxlength="200" autocomplete="off" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="todo-type">Type</label>
+                <select id="todo-type" class="input-field select-field">
+                  <option value="daily">📅 Daily Goal</option>
+                  <option value="weekly">📆 Weekly Goal</option>
+                  <option value="note">📝 Doubt / Note</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="todo-date">Date</label>
+                <input type="date" id="todo-date" class="input-field" />
+              </div>
+            </div>
+            <button id="btn-add-todo" class="btn btn-primary btn-full">✅ Add</button>
+          </div>
+
+          <!-- DAILY GOALS (collapsible) -->
+          <div class="card card-daily collapsible-card" id="card-daily">
+            <div class="section-header-row collapsible-trigger" data-target="daily-todos-body">
+              <div class="section-header-left">
+                <h2 class="section-title">📅 Daily Goals</h2>
+                <span class="progress-chip" id="daily-progress">0/0</span>
+              </div>
+              <span class="collapse-arrow" id="arrow-daily-todos-body">▼</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" id="daily-progress-bar"></div>
+            </div>
+            <div class="collapsible-body" id="daily-todos-body">
+              <div id="daily-todos-list" class="todos-list">
+                <p class="empty-state">No daily goals yet.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- WEEKLY GOALS (collapsible) -->
+          <div class="card card-weekly collapsible-card" id="card-weekly">
+            <div class="section-header-row collapsible-trigger" data-target="weekly-todos-body">
+              <div class="section-header-left">
+                <h2 class="section-title">📆 Weekly Goals</h2>
+                <span class="progress-chip" id="weekly-progress">0/0</span>
+              </div>
+              <span class="collapse-arrow" id="arrow-weekly-todos-body">▼</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" id="weekly-progress-bar"></div>
+            </div>
+            <div class="collapsible-body" id="weekly-todos-body">
+              <div id="weekly-todos-list" class="todos-list">
+                <p class="empty-state">No weekly goals yet.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- DOUBTS (collapsible, separate) -->
+          <div class="card card-notes collapsible-card" id="card-notes">
+            <div class="section-header-row collapsible-trigger" data-target="note-todos-body">
+              <div class="section-header-left">
+                <h2 class="section-title">📝 Doubts &amp; Notes</h2>
+                <span class="progress-chip" id="note-progress">0</span>
+              </div>
+              <span class="collapse-arrow" id="arrow-note-todos-body">▼</span>
+            </div>
+            <div class="collapsible-body" id="note-todos-body">
+              <div id="note-todos-list" class="todos-list">
+                <p class="empty-state">No notes or doubts yet.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- REMINDERS SECTION -->
+          <div class="card card-reminders collapsible-card" id="card-reminders">
+            <div class="section-header-row collapsible-trigger" data-target="reminders-body">
+              <div class="section-header-left">
+                <h2 class="section-title">📌 Reminders</h2>
+                <span class="progress-chip" id="reminders-count">0</span>
+              </div>
+              <span class="collapse-arrow" id="arrow-reminders-body">▼</span>
+            </div>
+            <div class="collapsible-body" id="reminders-body">
+              <div class="form-group" style="margin-bottom:10px">
+                <input type="text" id="reminder-text" class="input-field" placeholder="e.g. Submit assignment before 11:59 PM" maxlength="120" autocomplete="off" />
+              </div>
+              <div class="form-group" style="margin-bottom:10px">
+                <input type="datetime-local" id="reminder-time" class="input-field" />
+              </div>
+              <button id="btn-add-reminder" class="btn btn-primary btn-full btn-sm" style="margin-bottom:14px">📌 Add Reminder</button>
+              <div id="reminders-list" class="reminders-list">
+                <p class="empty-state">No reminders set.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ========== TAB: JOURNEY ========== -->
+      <section id="tab-journey" class="tab-panel" data-index="4">
+        <div class="home-scroll">
+          
+          <!-- LIST OF JOURNEYS VIEW -->
+          <div id="journeys-list-view">
+            <h2 class="section-title">My Journeys</h2>
+            <div id="journeys-list">
+              <p class="empty-state">No journeys yet. Create one!</p>
+            </div>
+            <button id="btn-open-create-journey" class="btn btn-primary btn-full btn-large" style="margin-top:20px;">＋ New Journey</button>
+          </div>
+
+          <!-- SINGLE JOURNEY MAIN VIEW -->
+          <div id="journey-main-view" class="hidden">
+            <!-- BACK BUTTON -->
+            <button id="btn-journey-back" class="btn btn-ghost btn-sm" style="margin-bottom: 14px;">← Back to Journeys</button>
+            <h2 class="section-title" id="journey-title-display">Journey Name</h2>
+            
+            <!-- TOP STATS -->
+            <div class="card" style="text-align: center; padding: 24px 16px;">
+              <h2 class="section-title" id="journey-top-day" style="font-size:1.4rem; color:var(--text); margin-bottom:4px; text-transform:none; letter-spacing:normal;">Day 0 of your journey 🔥</h2>
+              <p class="settings-desc" id="journey-start-text">Journey started April 3, 2026</p>
+              
+              <div class="stats-row" style="margin-top: 20px; grid-template-columns: repeat(3, 1fr);">
+                <div class="stat-card">
+                  <div class="stat-value" id="journey-stat-entries" style="font-size:1.4rem;">0</div>
+                  <div class="stat-label">Total Entries</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="journey-stat-streak" style="font-size:1.4rem;">0</div>
+                  <div class="stat-label">Current Streak</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="journey-stat-best" style="font-size:1.4rem;">0</div>
+                  <div class="stat-label">Best Streak</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TODAY'S ENTRY -->
+            <div class="card" id="journey-today-card">
+              <div class="section-header-row">
+                <h2 class="section-title">Today's Entry</h2>
+                <button class="btn btn-sm btn-ghost hidden" id="btn-edit-journey">Edit</button>
+              </div>
+              
+              <div id="journey-input-area">
+                <textarea id="journey-textarea" class="input-field" rows="4" placeholder="What did you do today? What did you learn? What was hard? Write anything..." style="resize:vertical; margin-bottom:10px; font-family: inherit;"></textarea>
+                <button id="btn-save-journey" class="btn btn-primary btn-full">SAVE TODAY'S ENTRY</button>
+              </div>
+              
+              <div id="journey-read-area" class="hidden">
+                <p id="journey-today-text" style="white-space: pre-wrap; font-size: 0.9rem; line-height: 1.5; color: var(--text2);"></p>
+              </div>
+            </div>
+
+            <!-- PAST ENTRIES -->
+            <h2 class="section-title" style="margin-top:20px;">Past Entries</h2>
+            <div id="journey-past-list" class="history-list">
+              <p class="empty-state">No past entries yet.</p>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+
+      <!-- ========== TAB: SETTINGS ========== -->
+      <section id="tab-settings" class="tab-panel" data-index="5">
+        <div class="home-scroll">
+
+          <div class="card">
+            <h2 class="section-title">🔔 Notifications</h2>
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-label">Push Notifications</div>
+                <div class="settings-desc">Timer alerts and reminders</div>
+              </div>
+              <button id="btn-notif-toggle" class="btn btn-sm btn-primary">Enable</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="section-title">🔔 Custom Ringtone</h2>
+            <p class="settings-desc" style="margin-bottom:14px">Upload an audio file to play instead of the default beep when a session ends.</p>
+            <div class="ringtone-upload-wrap">
+              <label for="ringtone-input" class="btn btn-ghost btn-full ringtone-label">
+                📁 Choose Audio File
+              </label>
+              <input type="file" id="ringtone-input" accept="audio/*" class="hidden" />
+            </div>
+            <div class="ringtone-status" id="ringtone-status">No custom ringtone set. Using default beep.</div>
+            <div class="ringtone-actions hidden" id="ringtone-actions">
+              <button class="btn btn-sm btn-ghost" id="btn-test-ringtone">▶ Test</button>
+              <button class="btn btn-sm btn-danger" id="btn-remove-ringtone">🗑 Remove</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="section-title">ℹ️ App Info</h2>
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-label">StudyTracker</div>
+                <div class="settings-desc">Version 3.0 — Restructured UI</div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-label">Install as App</div>
+                <div class="settings-desc">Add to home screen for best experience</div>
+              </div>
+              <button class="btn btn-sm btn-ghost" id="install-btn-2">⬇ Install</button>
+            </div>
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-label">Data</div>
+                <div class="settings-desc">Synced via Firebase + Local Storage</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div><!-- /tabs-viewport -->
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav" role="tablist" aria-label="Main navigation">
+      <button class="bnav-item active" data-tab="home" data-index="0" role="tab" aria-selected="true" id="bnav-home">
+        <span class="bnav-icon">🏠</span>
+        <span class="bnav-label">Home</span>
+      </button>
+      <button class="bnav-item" data-tab="calendar" data-index="1" role="tab" aria-selected="false" id="bnav-calendar">
+        <span class="bnav-icon">📅</span>
+        <span class="bnav-label">Calendar</span>
+      </button>
+      <button class="bnav-item bnav-center" data-tab="timer" data-index="2" role="tab" aria-selected="false" id="bnav-timer">
+        <span class="bnav-icon-center">⏱</span>
+      </button>
+      <button class="bnav-item" data-tab="todos" data-index="3" role="tab" aria-selected="false" id="bnav-todos">
+        <span class="bnav-icon">📝</span>
+        <span class="bnav-label">Tasks</span>
+      </button>
+      <button class="bnav-item" data-tab="journey" data-index="4" role="tab" aria-selected="false" id="bnav-journey">
+        <span class="bnav-icon">📖</span>
+        <span class="bnav-label">Journey</span>
+      </button>
+      <button class="bnav-item" data-tab="settings" data-index="5" role="tab" aria-selected="false" id="bnav-settings">
+        <span class="bnav-icon">⚙️</span>
+        <span class="bnav-label">Settings</span>
+      </button>
+    </nav>
+
+    <!-- FLOATING ACTION BUTTON -->
+    <button class="fab" id="fab-add" aria-label="Add session">＋</button>
+
+  </div><!-- /app-shell -->
 
   <script type="module" src="app.js"></script>
 </body>
