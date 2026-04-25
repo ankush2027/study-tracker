@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Only allow access to the specific user document this app uses.
+    // All other paths are denied by default.
+    match /users/ankush {
+      allow read, write: if true;
+    }
+
+  }
+}

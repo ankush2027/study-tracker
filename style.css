@@ -1023,3 +1023,214 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 /* SVG gradient (defined inline in JS for brevity — fallback color set above) */
+
+/* ============================================================
+   PLAN FEATURE
+============================================================ */
+.card-plan-overview {
+  border-left: 3px solid #a855f7;
+}
+
+/* Period toggle tabs */
+.plan-period-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  padding: 4px;
+}
+.plan-tab {
+  flex: 1;
+  padding: 7px 6px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.plan-tab:hover { color: var(--text2); }
+.plan-tab.active {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: white;
+  box-shadow: 0 3px 12px rgba(168,85,247,0.35);
+}
+
+/* Plan list */
+.plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Individual plan card */
+.plan-card {
+  background: rgba(168,85,247,0.06);
+  border: 1px solid rgba(168,85,247,0.2);
+  border-radius: var(--radius-sm);
+  padding: 13px 14px;
+  transition: var(--transition);
+  cursor: default;
+}
+.plan-card:hover { background: rgba(168,85,247,0.1); }
+
+.plan-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.plan-card-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  flex: 1;
+}
+.plan-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.plan-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.plan-badge.daily   { background: rgba(255,107,0,0.18); color: var(--accent); }
+.plan-badge.weekly  { background: rgba(34,197,94,0.15); color: var(--success); }
+.plan-badge.monthly { background: rgba(168,85,247,0.18); color: #a855f7; }
+
+.plan-deadline {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.plan-deadline.overdue { color: var(--danger); }
+.plan-deadline.due-soon { color: var(--warning); }
+
+/* Progress bar for plan */
+.plan-progress-wrap {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.plan-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #a855f7, #7c3aed);
+  transition: width 0.55s cubic-bezier(0.4,0,0.2,1);
+}
+.plan-progress-fill.done { background: linear-gradient(90deg, var(--success), #16a34a); }
+.plan-progress-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-bottom: 8px;
+  text-align: right;
+}
+
+/* Checklist inside plan */
+.plan-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.plan-check-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  padding: 5px 6px;
+  border-radius: 7px;
+  transition: var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+.plan-check-item:hover { background: rgba(255,255,255,0.04); }
+.plan-check-item.done { opacity: 0.5; }
+.plan-checkbox {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(168,85,247,0.45);
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  transition: var(--transition);
+}
+.plan-check-item.done .plan-checkbox {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+}
+.plan-check-text {
+  font-size: 0.85rem;
+  color: var(--text2);
+  flex: 1;
+  transition: var(--transition);
+}
+.plan-check-item.done .plan-check-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+/* Plan card footer actions */
+.plan-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border2);
+}
+.plan-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.88rem;
+  padding: 4px 7px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.plan-delete-btn:hover { color: var(--danger); background: var(--danger-dim); }
+
+/* Plan checklist inputs inside modal */
+.plan-checklist-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.plan-checklist-row {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.plan-checklist-row .input-field { flex: 1; }
+.plan-remove-item {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.95rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+.plan-remove-item:hover { color: var(--danger); background: var(--danger-dim); }
