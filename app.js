@@ -631,32 +631,28 @@ function resolveAlarm(completed) {
 /* =====================================================
    PLANS
    ===================================================== */
-let activePlanPeriod = 'daily';
+let activePlanFilter = 'active'; // 'active' | 'done'
+
+function isPlanCompleted(plan) {
+  if (plan.items.length === 0) return false;
+  return plan.items.every(i => i.done);
+}
 
 function openCreatePlanModal() {
   el('plan-title').value = '';
-  el('plan-type').value = activePlanPeriod;
-  // Set deadline based on period
-  const now = new Date();
-  if (activePlanPeriod === 'daily') {
-    el('plan-deadline').value = today();
-  } else if (activePlanPeriod === 'weekly') {
-    const end = new Date(now); end.setDate(now.getDate() + (7 - now.getDay()) % 7 || 7); el('plan-deadline').value = fmtDate(end);
-  } else {
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0); el('plan-deadline').value = fmtDate(end);
-  }
-  // Reset checklist
-  const inputs = el('plan-checklist-inputs');
-  inputs.innerHTML = '';
-  addPlanChecklistRow();
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  el('plan-deadline').value = fmtDate(tomorrow);
+  el('plan-checklist-inputs').innerHTML = '';
   el('create-plan-modal').classList.remove('hidden');
+  setTimeout(() => el('plan-title').focus(), 100);
 }
 
 function closeCreatePlanModal() {
   el('create-plan-modal').classList.add('hidden');
 }
 
-function addPlanChecklistRow(value = '') {
+function addPlanChecklistRow(value) {
+  value = value || '';
   const inputs = el('plan-checklist-inputs');
   const row = document.createElement('div');
   row.className = 'plan-checklist-row';
@@ -666,42 +662,35 @@ function addPlanChecklistRow(value = '') {
   inp.placeholder = 'e.g. Read Chapter 1';
   inp.maxLength = 100;
   inp.value = value;
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { addPlanChecklistRow(); setTimeout(() => { const all = inputs.querySelectorAll('.plan-item-input'); all[all.length-1].focus(); }, 50); } });
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      addPlanChecklistRow();
+      setTimeout(function() { var all = inputs.querySelectorAll('.plan-item-input'); all[all.length-1].focus(); }, 50);
+    }
+  });
   row.appendChild(inp);
-  if (inputs.children.length > 0) {
-    const del = document.createElement('button');
-    del.type = 'button';
-    del.className = 'plan-remove-item';
-    del.textContent = '✕';
-    del.addEventListener('click', () => row.remove());
-    row.appendChild(del);
-  }
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'plan-remove-item';
+  del.textContent = '\u2715';
+  del.addEventListener('click', function() { row.remove(); });
+  row.appendChild(del);
   inputs.appendChild(row);
 }
 
 function savePlan() {
   const title = el('plan-title').value.trim();
-  const type = el('plan-type').value;
   const deadline = el('plan-deadline').value;
-  if (!title) { alert('Please enter a plan title.'); return; }
+  if (!title) { alert('Please enter a goal.'); return; }
   if (!deadline) { alert('Please set a deadline.'); return; }
-
   const itemInputs = el('plan-checklist-inputs').querySelectorAll('.plan-item-input');
   const items = [];
-  itemInputs.forEach(inp => {
+  itemInputs.forEach(function(inp) {
     const t = inp.value.trim();
     if (t) items.push({ id: genId(), text: t, done: false });
   });
-
   if (!state.plans) state.plans = [];
-  state.plans.push({
-    id: genId(),
-    title,
-    type,
-    deadline,
-    items,
-    createdAt: nowMs()
-  });
+  state.plans.push({ id: genId(), title, deadline, items, createdAt: nowMs() });
   saveState();
   closeCreatePlanModal();
   renderHomePlans();
@@ -709,109 +698,128 @@ function savePlan() {
 
 function deletePlan(id) {
   if (!confirm('Delete this plan?')) return;
-  state.plans = state.plans.filter(p => p.id !== id);
+  state.plans = state.plans.filter(function(p) { return p.id !== id; });
   saveState();
   renderHomePlans();
 }
 
 function togglePlanItem(planId, itemId) {
   if (!state.plans) return;
-  const plan = state.plans.find(p => p.id === planId);
+  const plan = state.plans.find(function(p) { return p.id === planId; });
   if (!plan) return;
-  const item = plan.items.find(i => i.id === itemId);
+  const item = plan.items.find(function(i) { return i.id === itemId; });
   if (!item) return;
   item.done = !item.done;
   saveState();
   renderHomePlans();
 }
 
-function getPlanDeadlineLabel(deadline) {
+function getPlanDeadlineInfo(deadline) {
   const now = new Date();
   const dl = new Date(deadline + 'T23:59:59');
   const diffDays = Math.ceil((dl - now) / 86400000);
-  if (diffDays < 0) return { label: `Overdue by ${Math.abs(diffDays)}d`, cls: 'overdue' };
-  if (diffDays === 0) return { label: 'Due today', cls: 'due-soon' };
-  if (diffDays === 1) return { label: 'Due tomorrow', cls: 'due-soon' };
-  if (diffDays <= 3) return { label: `Due in ${diffDays}d`, cls: 'due-soon' };
-  const dlDate = dl.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  return { label: `Due ${dlDate}`, cls: '' };
+  const fmtDl = dl.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  if (diffDays < 0)  return { label: '\u26a0 Overdue \u00b7 ' + fmtDl, cls: 'overdue', group: 'overdue' };
+  if (diffDays === 0) return { label: '\ud83d\udd25 Due today \u00b7 ' + fmtDl, cls: 'due-soon', group: 'soon' };
+  if (diffDays === 1) return { label: '\u26a1 Due tomorrow \u00b7 ' + fmtDl, cls: 'due-soon', group: 'soon' };
+  if (diffDays <= 7)  return { label: '\ud83d\udcc5 ' + fmtDl + ' \u00b7 in ' + diffDays + 'd', cls: 'due-soon', group: 'week' };
+  return { label: '\ud83d\udcc5 ' + fmtDl, cls: '', group: 'later' };
 }
 
 function renderHomePlans() {
   if (!state.plans) state.plans = [];
   const list = el('home-plan-list');
   if (!list) return;
-
-  const filtered = state.plans
-    .filter(p => p.type === activePlanPeriod)
-    .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+  const showDone = activePlanFilter === 'done';
+  const filtered = state.plans.filter(function(p) { return isPlanCompleted(p) === showDone; });
 
   if (filtered.length === 0) {
-    const periodLabel = activePlanPeriod.charAt(0).toUpperCase() + activePlanPeriod.slice(1);
-    list.innerHTML = `<p class="empty-state">No ${periodLabel.toLowerCase()} plans yet. Tap + New to add one!</p>`;
+    list.innerHTML = showDone
+      ? '<p class="empty-state">No completed plans yet.</p>'
+      : '<p class="empty-state">No active plans. Tap + New to add one!</p>';
     return;
   }
-
   list.innerHTML = '';
-  filtered.forEach(plan => {
-    const done = plan.items.filter(i => i.done).length;
-    const total = plan.items.length;
-    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-    const allDone = total > 0 && done === total;
-    const dl = getPlanDeadlineLabel(plan.deadline);
-    const typeEmoji = { daily: '📅', weekly: '📆', monthly: '🗓️' }[plan.type] || '📋';
 
-    const card = document.createElement('div');
-    card.className = 'plan-card';
-    card.innerHTML = `
-      <div class="plan-card-header">
-        <div class="plan-card-title">${typeEmoji} ${escHtml(plan.title)}</div>
-        <button class="plan-delete-btn" data-id="${plan.id}" aria-label="Delete plan">🗑</button>
-      </div>
-      <div class="plan-deadline ${dl.cls}">📅 ${dl.label}</div>
-      <div class="plan-progress-wrap">
-        <div class="plan-progress-fill ${allDone ? 'done' : ''}" style="width:${pct}%"></div>
-      </div>
-      <div class="plan-progress-label">${done}/${total} done · ${pct}%</div>
-      <div class="plan-checklist">
-        ${plan.items.map(item => `
-          <div class="plan-check-item ${item.done ? 'done' : ''}" data-plan-id="${plan.id}" data-item-id="${item.id}">
-            <div class="plan-checkbox">${item.done ? '✓' : ''}</div>
-            <span class="plan-check-text">${escHtml(item.text)}</span>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    // Bind delete
-    card.querySelector('.plan-delete-btn').addEventListener('click', e => {
-      e.stopPropagation();
-      deletePlan(plan.id);
+  if (showDone) {
+    filtered.sort(function(a,b) { return new Date(a.deadline) - new Date(b.deadline); });
+    filtered.forEach(function(plan) { list.appendChild(buildPlanCard(plan, true)); });
+  } else {
+    const groups = { overdue: [], soon: [], week: [], later: [] };
+    filtered.forEach(function(plan) {
+      const info = getPlanDeadlineInfo(plan.deadline);
+      groups[info.group].push(plan);
     });
-
-    // Bind checklist toggles
-    card.querySelectorAll('.plan-check-item').forEach(row => {
-      row.addEventListener('click', () => {
-        togglePlanItem(row.dataset.planId, row.dataset.itemId);
-      });
+    Object.values(groups).forEach(function(g) {
+      g.sort(function(a,b) { return new Date(a.deadline) - new Date(b.deadline); });
     });
+    const groupLabels = { overdue: '\ud83d\udd34 Overdue', soon: '\ud83d\udfe1 Due Soon', week: '\ud83d\udfe2 This Week', later: '\ud83d\udcc6 Upcoming' };
+    ['overdue','soon','week','later'].forEach(function(key) {
+      if (groups[key].length === 0) return;
+      const label = document.createElement('div');
+      label.className = 'plan-group-label';
+      label.textContent = groupLabels[key];
+      list.appendChild(label);
+      groups[key].forEach(function(plan) { list.appendChild(buildPlanCard(plan, false)); });
+    });
+  }
+}
 
-    list.appendChild(card);
+function buildPlanCard(plan, isDone) {
+  const done = plan.items.filter(function(i) { return i.done; }).length;
+  const total = plan.items.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const allDone = total > 0 && done === total;
+  const dl = getPlanDeadlineInfo(plan.deadline);
+  const dlCls = isDone ? 'done-dl' : dl.cls;
+  const dlLabel = isDone
+    ? '\u2705 ' + new Date(plan.deadline + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+    : dl.label;
+
+  const card = document.createElement('div');
+  card.className = 'plan-card' + (isDone ? ' plan-card-done' : '');
+
+  let checklistHtml = '';
+  if (plan.items.length > 0) {
+    checklistHtml = '<div class="plan-progress-wrap"><div class="plan-progress-fill ' + (allDone ? 'done' : '') + '" style="width:' + pct + '%"></div></div>'
+      + '<div class="plan-progress-label">' + done + '/' + total + ' steps \u00b7 ' + pct + '%</div>'
+      + '<div class="plan-checklist">'
+      + plan.items.map(function(item) {
+          return '<div class="plan-check-item ' + (item.done ? 'done' : '') + '" data-plan-id="' + plan.id + '" data-item-id="' + item.id + '">'
+            + '<div class="plan-checkbox">' + (item.done ? '\u2713' : '') + '</div>'
+            + '<span class="plan-check-text">' + escHtml(item.text) + '</span></div>';
+        }).join('')
+      + '</div>';
+  }
+
+  card.innerHTML = '<div class="plan-card-header">'
+    + '<div class="plan-card-title">' + escHtml(plan.title) + '</div>'
+    + '<button class="plan-delete-btn" data-id="' + plan.id + '" aria-label="Delete plan">\ud83d\uddd1</button>'
+    + '</div>'
+    + '<div class="plan-deadline ' + dlCls + '">' + dlLabel + '</div>'
+    + checklistHtml;
+
+  card.querySelector('.plan-delete-btn').addEventListener('click', function(e) { e.stopPropagation(); deletePlan(plan.id); });
+  card.querySelectorAll('.plan-check-item').forEach(function(row) {
+    row.addEventListener('click', function() { togglePlanItem(row.dataset.planId, row.dataset.itemId); });
   });
+  return card;
 }
 
 function initPlanTabs() {
-  document.querySelectorAll('.plan-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.plan-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.plan-filter-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.plan-filter-btn').forEach(function(b) { b.classList.remove('active'); });
       btn.classList.add('active');
-      activePlanPeriod = btn.dataset.period;
+      activePlanFilter = btn.dataset.filter;
       renderHomePlans();
     });
   });
 }
 
+
 let activeJourneyId = null;
+
 
 /* =====================================================
    MY JOURNEY

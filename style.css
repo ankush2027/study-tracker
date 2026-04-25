@@ -1031,33 +1031,31 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   border-left: 3px solid #a855f7;
 }
 
-/* Period toggle tabs */
-.plan-period-tabs {
+/* Period toggle tabs — REMOVED */
+
+/* Active/Done filter row */
+.plan-filter-row {
   display: flex;
   gap: 6px;
   margin-bottom: 14px;
-  background: rgba(255,255,255,0.04);
-  border-radius: 10px;
-  padding: 4px;
 }
-.plan-tab {
-  flex: 1;
-  padding: 7px 6px;
-  border-radius: 8px;
+.plan-filter-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  border: none;
+  border: 1px solid var(--border2);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   transition: var(--transition);
 }
-.plan-tab:hover { color: var(--text2); }
-.plan-tab.active {
-  background: linear-gradient(135deg, #a855f7, #7c3aed);
-  color: white;
-  box-shadow: 0 3px 12px rgba(168,85,247,0.35);
+.plan-filter-btn:hover { color: var(--text2); border-color: rgba(168,85,247,0.3); }
+.plan-filter-btn.active {
+  background: rgba(168,85,247,0.18);
+  color: #c084fc;
+  border-color: rgba(168,85,247,0.4);
 }
 
 /* Plan list */
@@ -1111,16 +1109,22 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .plan-badge.monthly { background: rgba(168,85,247,0.18); color: #a855f7; }
 
 .plan-deadline {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--muted);
   font-family: var(--mono);
   margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  padding: 4px 8px;
+  width: fit-content;
 }
-.plan-deadline.overdue { color: var(--danger); }
-.plan-deadline.due-soon { color: var(--warning); }
+.plan-deadline.overdue { color: var(--danger); background: var(--danger-dim); }
+.plan-deadline.due-soon { color: var(--warning); background: var(--warning-dim); }
+.plan-deadline.done-dl { color: var(--success); background: var(--success-dim); }
 
 /* Progress bar for plan */
 .plan-progress-wrap {
@@ -1209,6 +1213,26 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   transition: var(--transition);
 }
 .plan-delete-btn:hover { color: var(--danger); background: var(--danger-dim); }
+
+/* Plan group labels */
+.plan-group-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 2px 6px;
+  margin-top: 4px;
+}
+
+/* Completed plan card */
+.plan-card-done {
+  opacity: 0.6;
+  border-color: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+}
+.plan-card-done:hover { opacity: 0.8; }
+
 
 /* Plan checklist inputs inside modal */
 .plan-checklist-inputs {

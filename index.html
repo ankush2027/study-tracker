@@ -182,34 +182,20 @@
   <!-- CREATE PLAN MODAL -->
   <div id="create-plan-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
     <div class="modal-box modal-box-lg">
-      <h3 id="create-plan-modal-title">📋 New Plan</h3>
-      <p class="modal-subtitle">Set a goal for a specific time period</p>
+      <h3>📋 New Plan</h3>
+      <p class="modal-subtitle">Set a goal with a target deadline</p>
       <div class="form-group">
-        <label class="form-label" for="plan-title">Plan Title</label>
-        <input type="text" id="plan-title" class="input-field" placeholder="e.g. Complete 5 chapters of DBMS" maxlength="100" autocomplete="off" />
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label" for="plan-type">Period</label>
-          <select id="plan-type" class="input-field select-field">
-            <option value="daily">📅 Daily</option>
-            <option value="weekly" selected>📆 Weekly</option>
-            <option value="monthly">🗓️ Monthly</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="plan-deadline">Deadline</label>
-          <input type="date" id="plan-deadline" class="input-field" />
-        </div>
+        <label class="form-label" for="plan-title">What's your goal?</label>
+        <input type="text" id="plan-title" class="input-field" placeholder="e.g. Finish DBMS unit 3" maxlength="100" autocomplete="off" />
       </div>
       <div class="form-group">
-        <label class="form-label">Checklist Items</label>
-        <div class="plan-checklist-inputs" id="plan-checklist-inputs">
-          <div class="plan-checklist-row">
-            <input type="text" class="input-field plan-item-input" placeholder="e.g. Read Chapter 1" maxlength="100" />
-          </div>
-        </div>
-        <button class="btn btn-ghost btn-sm btn-full" id="btn-add-plan-item" style="margin-top:8px;">+ Add Item</button>
+        <label class="form-label" for="plan-deadline">Complete by</label>
+        <input type="date" id="plan-deadline" class="input-field" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Steps / Checklist <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <div class="plan-checklist-inputs" id="plan-checklist-inputs"></div>
+        <button class="btn btn-ghost btn-sm btn-full" id="btn-add-plan-item" style="margin-top:8px;">+ Add Step</button>
       </div>
       <div class="modal-actions">
         <button id="btn-save-plan" class="btn btn-primary">✅ Create Plan</button>
@@ -305,15 +291,14 @@
               <button class="btn btn-sm btn-primary" id="btn-open-create-plan">+ New</button>
             </div>
 
-            <!-- Period Tabs -->
-            <div class="plan-period-tabs" id="plan-period-tabs">
-              <button class="plan-tab active" data-period="daily">Daily</button>
-              <button class="plan-tab" data-period="weekly">Weekly</button>
-              <button class="plan-tab" data-period="monthly">Monthly</button>
+            <!-- Active / Done toggle -->
+            <div class="plan-filter-row" id="plan-filter-row">
+              <button class="plan-filter-btn active" id="plan-filter-active" data-filter="active">Active</button>
+              <button class="plan-filter-btn" id="plan-filter-done" data-filter="done">Completed</button>
             </div>
 
             <div id="home-plan-list" class="plan-list">
-              <p class="empty-state">No plans yet. Add one!</p>
+              <p class="empty-state">No plans yet. Tap + New to create one!</p>
             </div>
           </div>
 
