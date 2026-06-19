@@ -1,19 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#ff6b00" />
-  <meta name="description" content="StudyTracker — Focus mode, countdown timer, goals, and accountability for students." />
+  <meta name="description"
+    content="StudyTracker — Focus mode, countdown timer, goals, and accountability for students." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="StudyTracker" />
-  <title>StudyTracker — Focus Mode</title>
+  <title>Dada bele ?🙃</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
 
   <!-- ============================================================
@@ -30,8 +35,10 @@
       <p class="alarm-question">Did you complete:</p>
       <p class="alarm-task-name" id="alarm-task-name"></p>
       <div class="alarm-buttons">
-        <button id="btn-yes" class="btn btn-success btn-large" aria-label="Yes, I completed the task">✅ Yes, Completed!</button>
-        <button id="btn-no" class="btn btn-danger btn-large" aria-label="No, I did not complete the task">❌ No, Failed</button>
+        <button id="btn-yes" class="btn btn-success btn-large" aria-label="Yes, I completed the task">✅ Yes,
+          Completed!</button>
+        <button id="btn-no" class="btn btn-danger btn-large" aria-label="No, I did not complete the task">❌ No,
+          Failed</button>
       </div>
       <button id="btn-dismiss-alarm" class="btn btn-ghost alarm-dismiss-btn">✕ Dismiss Alarm</button>
     </div>
@@ -50,12 +57,14 @@
   </div>
 
   <!-- BREAK MODAL -->
-  <div id="break-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="break-modal-title">
+  <div id="break-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+    aria-labelledby="break-modal-title">
     <div class="modal-box">
       <h3 id="break-modal-title">☕ Take a Break</h3>
       <p class="modal-subtitle">How long is your break?</p>
       <div class="input-row">
-        <input type="number" id="break-minutes" min="1" max="60" value="5" class="input-field text-center" placeholder="5" aria-label="Break duration in minutes" />
+        <input type="number" id="break-minutes" min="1" max="60" value="5" class="input-field text-center"
+          placeholder="5" aria-label="Break duration in minutes" />
         <span class="input-unit">minutes</span>
       </div>
       <div class="modal-actions">
@@ -66,13 +75,15 @@
   </div>
 
   <!-- ADD SESSION MODAL (from FAB) -->
-  <div id="add-session-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="add-session-modal-title">
+  <div id="add-session-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+    aria-labelledby="add-session-modal-title">
     <div class="modal-box modal-box-lg">
       <h3 id="add-session-modal-title">➕ New Session</h3>
       <p class="modal-subtitle">Schedule your next study block</p>
       <div class="form-group">
         <label class="form-label" for="modal-task-name">Task / Subject</label>
-        <input type="text" id="modal-task-name" class="input-field" placeholder="e.g. Operating Systems Ch. 3" maxlength="80" autocomplete="off" />
+        <input type="text" id="modal-task-name" class="input-field" placeholder="e.g. Operating Systems Ch. 3"
+          maxlength="80" autocomplete="off" />
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -134,13 +145,15 @@
     <div class="day-view-box">
       <div class="day-view-header">
         <div>
-          <h2 id="journey-read-title" class="section-title" style="margin:0; font-size:1.1rem; color:var(--text);">Day X</h2>
+          <h2 id="journey-read-title" class="section-title" style="margin:0; font-size:1.1rem; color:var(--text);">Day X
+          </h2>
           <span id="journey-read-date" style="font-size:0.75rem; color:var(--muted);">Date</span>
         </div>
         <button id="btn-close-journey-read" class="btn btn-ghost btn-icon">✕</button>
       </div>
       <div class="day-view-content">
-        <p id="journey-read-text" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; color: var(--text2); margin:0;"></p>
+        <p id="journey-read-text"
+          style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; color: var(--text2); margin:0;"></p>
       </div>
     </div>
   </div>
@@ -151,7 +164,8 @@
       <h3 id="create-journey-title">✨ New Journey</h3>
       <div class="form-group">
         <label class="form-label" for="new-journey-name">Journey Name</label>
-        <input type="text" id="new-journey-name" class="input-field" placeholder="e.g. Learn React, 100 Days of Code" maxlength="60" />
+        <input type="text" id="new-journey-name" class="input-field" placeholder="e.g. Learn React, 100 Days of Code"
+          maxlength="60" />
       </div>
       <div class="form-group">
         <label class="form-label">Pick Emoji</label>
@@ -186,14 +200,16 @@
       <p class="modal-subtitle">Set a goal with a target deadline</p>
       <div class="form-group">
         <label class="form-label" for="plan-title">What's your goal?</label>
-        <input type="text" id="plan-title" class="input-field" placeholder="e.g. Finish DBMS unit 3" maxlength="100" autocomplete="off" />
+        <input type="text" id="plan-title" class="input-field" placeholder="e.g. Finish DBMS unit 3" maxlength="100"
+          autocomplete="off" />
       </div>
       <div class="form-group">
         <label class="form-label" for="plan-deadline">Complete by</label>
         <input type="date" id="plan-deadline" class="input-field" />
       </div>
       <div class="form-group">
-        <label class="form-label">Steps / Checklist <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <label class="form-label">Steps / Checklist <span
+            style="color:var(--muted);font-weight:400;">(optional)</span></label>
         <div class="plan-checklist-inputs" id="plan-checklist-inputs"></div>
         <button class="btn btn-ghost btn-sm btn-full" id="btn-add-plan-item" style="margin-top:8px;">+ Add Step</button>
       </div>
@@ -374,7 +390,8 @@
             </div>
             <div class="timer-task-name" id="timer-task-display"></div>
             <div class="countdown-display" id="countdown-display" aria-live="polite" aria-label="Countdown timer">
-              <span id="time-hh">--</span><span class="colon">:</span><span id="time-mm">--</span><span class="colon">:</span><span id="time-ss">--</span>
+              <span id="time-hh">--</span><span class="colon">:</span><span id="time-mm">--</span><span
+                class="colon">:</span><span id="time-ss">--</span>
             </div>
             <div class="timer-progress-wrap">
               <div class="timer-progress-bar" id="timer-progress-bar"></div>
@@ -411,7 +428,8 @@
             <h2 class="section-title">➕ Add Session to Queue</h2>
             <div class="form-group">
               <label class="form-label" for="task-name">Task / Subject</label>
-              <input type="text" id="task-name" class="input-field" placeholder="e.g. Operating Systems Chapter 3" maxlength="80" autocomplete="off" />
+              <input type="text" id="task-name" class="input-field" placeholder="e.g. Operating Systems Chapter 3"
+                maxlength="80" autocomplete="off" />
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -439,7 +457,8 @@
             <h2 class="section-title">➕ Add Entry</h2>
             <div class="form-group">
               <label class="form-label" for="todo-text">Goal / Task / Doubt</label>
-              <input type="text" id="todo-text" class="input-field" placeholder="e.g. Solve 3 LeetCode problems" maxlength="200" autocomplete="off" />
+              <input type="text" id="todo-text" class="input-field" placeholder="e.g. Solve 3 LeetCode problems"
+                maxlength="200" autocomplete="off" />
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -523,12 +542,14 @@
             </div>
             <div class="collapsible-body" id="reminders-body">
               <div class="form-group" style="margin-bottom:10px">
-                <input type="text" id="reminder-text" class="input-field" placeholder="e.g. Submit assignment before 11:59 PM" maxlength="120" autocomplete="off" />
+                <input type="text" id="reminder-text" class="input-field"
+                  placeholder="e.g. Submit assignment before 11:59 PM" maxlength="120" autocomplete="off" />
               </div>
               <div class="form-group" style="margin-bottom:10px">
                 <input type="datetime-local" id="reminder-time" class="input-field" />
               </div>
-              <button id="btn-add-reminder" class="btn btn-primary btn-full btn-sm" style="margin-bottom:14px">📌 Add Reminder</button>
+              <button id="btn-add-reminder" class="btn btn-primary btn-full btn-sm" style="margin-bottom:14px">📌 Add
+                Reminder</button>
               <div id="reminders-list" class="reminders-list">
                 <p class="empty-state">No reminders set.</p>
               </div>
@@ -541,27 +562,31 @@
       <!-- ========== TAB: JOURNEY ========== -->
       <section id="tab-journey" class="tab-panel" data-index="4">
         <div class="home-scroll">
-          
+
           <!-- LIST OF JOURNEYS VIEW -->
           <div id="journeys-list-view">
             <h2 class="section-title">My Journeys</h2>
             <div id="journeys-list">
               <p class="empty-state">No journeys yet. Create one!</p>
             </div>
-            <button id="btn-open-create-journey" class="btn btn-primary btn-full btn-large" style="margin-top:20px;">＋ New Journey</button>
+            <button id="btn-open-create-journey" class="btn btn-primary btn-full btn-large" style="margin-top:20px;">＋
+              New Journey</button>
           </div>
 
           <!-- SINGLE JOURNEY MAIN VIEW -->
           <div id="journey-main-view" class="hidden">
             <!-- BACK BUTTON -->
-            <button id="btn-journey-back" class="btn btn-ghost btn-sm" style="margin-bottom: 14px;">← Back to Journeys</button>
+            <button id="btn-journey-back" class="btn btn-ghost btn-sm" style="margin-bottom: 14px;">← Back to
+              Journeys</button>
             <h2 class="section-title" id="journey-title-display">Journey Name</h2>
-            
+
             <!-- TOP STATS -->
             <div class="card" style="text-align: center; padding: 24px 16px;">
-              <h2 class="section-title" id="journey-top-day" style="font-size:1.4rem; color:var(--text); margin-bottom:4px; text-transform:none; letter-spacing:normal;">Day 0 of your journey 🔥</h2>
+              <h2 class="section-title" id="journey-top-day"
+                style="font-size:1.4rem; color:var(--text); margin-bottom:4px; text-transform:none; letter-spacing:normal;">
+                Day 0 of your journey 🔥</h2>
               <p class="settings-desc" id="journey-start-text">Journey started April 3, 2026</p>
-              
+
               <div class="stats-row" style="margin-top: 20px; grid-template-columns: repeat(3, 1fr);">
                 <div class="stat-card">
                   <div class="stat-value" id="journey-stat-entries" style="font-size:1.4rem;">0</div>
@@ -578,20 +603,36 @@
               </div>
             </div>
 
+            <!-- JOURNEY PROGRESS CALENDAR -->
+            <div class="card journey-calendar-card" id="journey-calendar-card" style="padding: 16px;">
+              <div class="section-header-row" style="margin-bottom: 8px;">
+                <div class="section-header-left">
+                  <h2 class="section-title" style="margin-bottom: 0;">📅 Progress Calendar</h2>
+                </div>
+                <span class="progress-chip" id="journey-calendar-progress">0/30 Days Done</span>
+              </div>
+              <div class="journey-calendar-grid" id="journey-calendar-grid">
+                <!-- Day tiles populated by JS -->
+              </div>
+            </div>
+
             <!-- TODAY'S ENTRY -->
             <div class="card" id="journey-today-card">
               <div class="section-header-row">
                 <h2 class="section-title">Today's Entry</h2>
                 <button class="btn btn-sm btn-ghost hidden" id="btn-edit-journey">Edit</button>
               </div>
-              
+
               <div id="journey-input-area">
-                <textarea id="journey-textarea" class="input-field" rows="4" placeholder="What did you do today? What did you learn? What was hard? Write anything..." style="resize:vertical; margin-bottom:10px; font-family: inherit;"></textarea>
+                <textarea id="journey-textarea" class="input-field" rows="4"
+                  placeholder="What did you do today? What did you learn? What was hard? Write anything..."
+                  style="resize:vertical; margin-bottom:10px; font-family: inherit;"></textarea>
                 <button id="btn-save-journey" class="btn btn-primary btn-full">SAVE TODAY'S ENTRY</button>
               </div>
-              
+
               <div id="journey-read-area" class="hidden">
-                <p id="journey-today-text" style="white-space: pre-wrap; font-size: 0.9rem; line-height: 1.5; color: var(--text2);"></p>
+                <p id="journey-today-text"
+                  style="white-space: pre-wrap; font-size: 0.9rem; line-height: 1.5; color: var(--text2);"></p>
               </div>
             </div>
 
@@ -601,7 +642,7 @@
               <p class="empty-state">No past entries yet.</p>
             </div>
           </div>
-          
+
         </div>
       </section>
 
@@ -622,7 +663,8 @@
 
           <div class="card">
             <h2 class="section-title">🔔 Custom Ringtone</h2>
-            <p class="settings-desc" style="margin-bottom:14px">Upload an audio file to play instead of the default beep when a session ends.</p>
+            <p class="settings-desc" style="margin-bottom:14px">Upload an audio file to play instead of the default beep
+              when a session ends.</p>
             <div class="ringtone-upload-wrap">
               <label for="ringtone-input" class="btn btn-ghost btn-full ringtone-label">
                 📁 Choose Audio File
@@ -674,7 +716,8 @@
         <span class="bnav-icon">📅</span>
         <span class="bnav-label">Calendar</span>
       </button>
-      <button class="bnav-item bnav-center" data-tab="timer" data-index="2" role="tab" aria-selected="false" id="bnav-timer">
+      <button class="bnav-item bnav-center" data-tab="timer" data-index="2" role="tab" aria-selected="false"
+        id="bnav-timer">
         <span class="bnav-icon-center">⏱</span>
       </button>
       <button class="bnav-item" data-tab="todos" data-index="3" role="tab" aria-selected="false" id="bnav-todos">
@@ -698,4 +741,5 @@
 
   <script type="module" src="app.js"></script>
 </body>
+
 </html>

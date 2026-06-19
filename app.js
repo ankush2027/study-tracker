@@ -86,6 +86,10 @@ async function loadState() {
     if (raw) { state = Object.assign(state, JSON.parse(raw)); }
   } catch (e) { }
 
+  try {
+    activeJourneyId = localStorage.getItem('activeJourneyId') || null;
+  } catch (e) { }
+
   // Migrate: ensure sessionQueue exists
   if (!state.sessionQueue) state.sessionQueue = [];
   
@@ -820,10 +824,96 @@ function initPlanTabs() {
 
 let activeJourneyId = null;
 
-
 /* =====================================================
-   MY JOURNEY
+   MY JOURNEY HELPERS & LOGIC
    ===================================================== */
+function getJourneyDayDate(startDateStr, dayNum) {
+  const start = new Date(startDateStr + 'T12:00:00'); // Use noon to avoid timezone shift
+  const dayDate = new Date(start.getTime() + (dayNum - 1) * 86400000);
+  return fmtDate(dayDate);
+}
+
+function getJourneyDayNumber(startDateStr, dateStr) {
+  const start = new Date(startDateStr + 'T12:00:00');
+  const d = new Date(dateStr + 'T12:00:00');
+  const diffTime = d - start;
+  return Math.floor(diffTime / 86400000) + 1;
+}
+
+function toggleJourneyDay(jid, dayNum) {
+  const j = state.journeys[jid];
+  if (!j) return;
+  const dateStr = getJourneyDayDate(j.startDate, dayNum);
+  const existing = j.entries[dateStr];
+  
+  if (existing) {
+    const wasCompleted = existing.completed !== false;
+    existing.completed = !wasCompleted;
+    if (!existing.completed && !existing.text.trim()) {
+      delete j.entries[dateStr];
+    }
+  } else {
+    j.entries[dateStr] = {
+      dayNumber: dayNum,
+      text: '',
+      completed: true,
+      savedAt: nowMs()
+    };
+  }
+  saveState();
+  renderJourney();
+  renderHome();
+}
+
+function renderJourneyCalendar(jid) {
+  const j = state.journeys[jid];
+  const grid = el('journey-calendar-grid');
+  if (!grid || !j) return;
+  grid.innerHTML = '';
+  
+  const todayStr = today();
+  const todayDayNum = getJourneyDayNumber(j.startDate, todayStr);
+  const totalDaysToRender = Math.max(30, todayDayNum);
+  
+  let completedCount = 0;
+  
+  for (let d = 1; d <= totalDaysToRender; d++) {
+    const dateStr = getJourneyDayDate(j.startDate, d);
+    const entry = j.entries[dateStr];
+    const isCompleted = entry && entry.completed !== false;
+    const isToday = (d === todayDayNum);
+    const isFuture = (d > todayDayNum);
+    const isPast = (d < todayDayNum);
+    
+    if (isCompleted) completedCount++;
+    
+    const tile = document.createElement('div');
+    tile.className = 'journey-day-tile';
+    if (isCompleted) tile.classList.add('completed');
+    else if (isPast) tile.classList.add('missed');
+    
+    if (isToday) tile.classList.add('today');
+    if (isFuture) tile.classList.add('disabled');
+    
+    tile.innerHTML = `
+      <div class="day-label">Day</div>
+      <div class="day-num">${d}</div>
+    `;
+    
+    const formattedDate = new Date(dateStr + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' });
+    tile.title = `${formattedDate}${isToday ? ' (Today)' : ''}`;
+    
+    if (!isFuture) {
+      tile.addEventListener('click', () => {
+        toggleJourneyDay(jid, d);
+      });
+    }
+    grid.appendChild(tile);
+  }
+  
+  el('journey-calendar-progress').textContent = `${completedCount}/${totalDaysToRender} Done`;
+}
+
 function openCreateJourneyModal() {
   el('new-journey-name').value = '';
   el('new-journey-date').value = today();
@@ -854,6 +944,8 @@ function createJourney() {
   };
   saveState();
   closeCreateJourneyModal();
+  activeJourneyId = jid;
+  try { localStorage.setItem('activeJourneyId', jid); } catch (e) { }
   renderJourney();
 }
 
@@ -865,12 +957,13 @@ function getJourneyData(jid) {
     .map(k => ({ date: k, ...journey.entries[k] }))
     .sort((a, b) => a.dayNumber - b.dayNumber);
   
-  const totalEntries = entriesArray.length;
+  const completedEntries = entriesArray.filter(e => e.completed !== false);
+  const totalEntries = completedEntries.length;
   let currentStreak = 0, bestStreak = 0, tempStreak = 0, lastDateMs = null;
-  const calendarSorted = [...entriesArray].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const calendarSorted = [...completedEntries].sort((a,b) => new Date(a.date + 'T12:00:00').getTime() - new Date(b.date + 'T12:00:00').getTime());
   
   for (let i = 0; i < calendarSorted.length; i++) {
-    const ts = new Date(calendarSorted[i].date).getTime();
+    const ts = new Date(calendarSorted[i].date + 'T12:00:00').getTime();
     if (lastDateMs === null) { tempStreak = 1; }
     else {
       const diffDays = Math.round((ts - lastDateMs) / 86400000);
@@ -882,7 +975,7 @@ function getJourneyData(jid) {
   }
   
   if (lastDateMs !== null) {
-    const diffDays = Math.round((new Date(today()).getTime() - lastDateMs) / 86400000);
+    const diffDays = Math.round((new Date(today() + 'T12:00:00').getTime() - lastDateMs) / 86400000);
     if (diffDays <= 1) currentStreak = tempStreak;
     else currentStreak = 0;
   }
@@ -924,13 +1017,17 @@ function renderJourney() {
           <div style="flex:1; min-width:0;">
             <div style="font-weight:700; font-size:1.1rem; color:var(--text); margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(j.name)}</div>
             <div style="font-size:0.8rem; color:var(--muted); display:flex; gap:10px;">
-              <span>📝 ${data.total} entries</span>
+              <span>📝 ${data.total} completed</span>
               <span>🔥 ${data.currentStreak} streak</span>
             </div>
             <div style="font-size:0.75rem; color:var(--text2); margin-top:4px;">Last: ${lastEntryDate}</div>
           </div>
         `;
-        div.addEventListener('click', () => { activeJourneyId = k; renderJourney(); });
+        div.addEventListener('click', () => { 
+          activeJourneyId = k; 
+          try { localStorage.setItem('activeJourneyId', k); } catch (e) { }
+          renderJourney(); 
+        });
         
         div.addEventListener('contextmenu', (e) => { e.preventDefault(); deleteJourneyCheck(k); });
         
@@ -958,15 +1055,19 @@ function renderJourney() {
   
   el('journey-title-display').textContent = `${j.emoji} ${j.name}`;
   
-  el('journey-top-day').textContent = `Day ${todayEntry ? todayEntry.dayNumber : (data.total + 1)} of your journey 🔥`;
-  const formattedStart = new Date(j.startDate).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+  const todayDayNum = getJourneyDayNumber(j.startDate, todayStr);
+  el('journey-top-day').textContent = `Day ${todayDayNum} of your journey 🔥`;
+  const formattedStart = new Date(j.startDate + 'T12:00:00').toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
   el('journey-start-text').textContent = `Journey started ${formattedStart}`;
   
   el('journey-stat-entries').textContent = data.total;
   el('journey-stat-streak').textContent = data.currentStreak;
   el('journey-stat-best').textContent = data.bestStreak;
   
-  if (todayEntry) {
+  // Render Progress Calendar
+  renderJourneyCalendar(activeJourneyId);
+  
+  if (todayEntry && todayEntry.text) {
     el('journey-input-area').classList.add('hidden');
     el('journey-read-area').classList.remove('hidden');
     el('journey-today-text').textContent = todayEntry.text;
@@ -974,14 +1075,15 @@ function renderJourney() {
   } else {
     el('journey-input-area').classList.remove('hidden');
     el('journey-read-area').classList.add('hidden');
-    el('journey-textarea').value = '';
+    el('journey-textarea').value = todayEntry ? todayEntry.text : '';
     el('btn-edit-journey').classList.add('hidden');
   }
   
   const pastList = el('journey-past-list');
-  const past = data.array.filter(e => e.date !== todayStr).sort((a,b) => b.dayNumber - a.dayNumber);
+  // Only show past entries that have actual text written
+  const past = data.array.filter(e => e.date !== todayStr && e.text.trim() !== '').sort((a,b) => b.dayNumber - a.dayNumber);
   if (past.length === 0) {
-    pastList.innerHTML = '<p class="empty-state">No past entries yet.</p>';
+    pastList.innerHTML = '<p class="empty-state">No past journal entries yet.</p>';
   } else {
     pastList.innerHTML = '';
     past.forEach(entry => {
@@ -992,7 +1094,7 @@ function renderJourney() {
       div.style.textAlign = 'left';
       div.style.padding = '16px';
       
-      const formattedDate = new Date(entry.date).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+      const formattedDate = new Date(entry.date + 'T12:00:00').toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
       
       div.innerHTML = `
         <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Day ${entry.dayNumber} <span style="font-weight:400; color:var(--muted); font-size:0.85em;">• ${formattedDate}</span></div>
@@ -1007,7 +1109,10 @@ function renderJourney() {
 function deleteJourneyCheck(jid) {
   if (confirm('Delete this journey forever?')) {
     delete state.journeys[jid];
-    if (activeJourneyId === jid) activeJourneyId = null;
+    if (activeJourneyId === jid) {
+      activeJourneyId = null;
+      try { localStorage.removeItem('activeJourneyId'); } catch (e) { }
+    }
     saveState();
     renderJourney();
   }
@@ -1025,11 +1130,13 @@ function saveJourneyEntry() {
   if (existing) {
     existing.text = text;
     existing.savedAt = nowMs();
+    existing.completed = true;
   } else {
-    const data = getJourneyData(activeJourneyId);
+    const todayDayNum = getJourneyDayNumber(j.startDate, todayStr);
     j.entries[todayStr] = {
-      dayNumber: data.total + 1,
+      dayNumber: todayDayNum,
       text: text,
+      completed: true,
       savedAt: nowMs()
     };
   }
@@ -1618,7 +1725,7 @@ function initEvents() {
     });
   });
   
-  el('btn-journey-back').addEventListener('click', () => { activeJourneyId = null; renderJourney(); });
+  el('btn-journey-back').addEventListener('click', () => { activeJourneyId = null; try { localStorage.removeItem('activeJourneyId'); } catch (e) { } renderJourney(); });
   el('btn-save-journey').addEventListener('click', saveJourneyEntry);
   el('btn-edit-journey').addEventListener('click', editJourneyEntry);
   el('btn-close-journey-read').addEventListener('click', closeJourneyRead);
